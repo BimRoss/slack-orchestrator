@@ -5,9 +5,11 @@ import "github.com/bimross/slack-orchestrator/internal/routing"
 
 const SchemaVersion = "1"
 
-// EventV1 is POSTed to each target worker (one HTTP request per employee in the routing decision).
+// EventV1 is published to JetStream per target employee (subject slack.work.<employee>.events).
 type EventV1 struct {
 	SchemaVersion string `json:"schema_version"`
+
+	TraceID string `json:"trace_id,omitempty"`
 
 	SlackEventID   string `json:"slack_event_id,omitempty"`
 	SlackEventTime int    `json:"slack_event_time,omitempty"`

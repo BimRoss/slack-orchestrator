@@ -4,7 +4,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // Config holds runtime settings loaded from the environment.
@@ -19,11 +18,10 @@ type Config struct {
 	ChannelLimit    int
 	LogJSON         bool
 
-	// DispatchEnabled POSTs routing decisions to per-employee worker URLs (Phase 2).
-	DispatchEnabled     bool
-	WorkerURLTemplate   string
-	WorkerHMACSecret    string
-	DispatchHTTPTimeout time.Duration
+	// DispatchEnabled publishes routing decisions to NATS JetStream (per-employee subjects).
+	DispatchEnabled bool
+	NatsURL         string
+	NatsStream      string
 
 	// DebugToken enables GET /debug/decisions (Bearer). Empty = endpoint disabled unless DebugAllowAnon.
 	DebugToken string
@@ -34,10 +32,9 @@ type Config struct {
 }
 
 const (
-	defaultHTTPAddr           = ":8080"
-	defaultEveryoneLimit      = 5
-	defaultChannelLimit       = 3
-	defaultDispatchTimeoutSec = 10
+	defaultHTTPAddr      = ":8080"
+	defaultEveryoneLimit = 5
+	defaultChannelLimit  = 3
 )
 
 // FromEnv loads configuration. Missing SLACK_BOT_TOKEN / SLACK_APP_TOKEN is allowed for routing-only tests.
@@ -49,10 +46,6 @@ func FromEnv() Config {
 	}
 	explicitOrder := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
 	order := ResolveMultiagentOrder(explicitOrder, botMap, shuffle)
-	dispatchTimeoutSec := getenvInt("ORCHESTRATOR_DISPATCH_TIMEOUT_SEC", defaultDispatchTimeoutSec)
-	if dispatchTimeoutSec < 1 {
-		dispatchTimeoutSec = defaultDispatchTimeoutSec
-	}
 	cfg := Config{
 		HTTPAddr:        strings.TrimSpace(os.Getenv("HTTP_ADDR")),
 		BotToken:        strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")),
@@ -64,10 +57,9 @@ func FromEnv() Config {
 		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
 		LogJSON:         logJSONDefaultTrue(os.Getenv("LOG_JSON")),
 
-		DispatchEnabled:     parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
-		WorkerURLTemplate:   strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_URL_TEMPLATE")),
-		WorkerHMACSecret:    strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_HMAC_SECRET")),
-		DispatchHTTPTimeout: time.Duration(dispatchTimeoutSec) * time.Second,
+		DispatchEnabled: parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
+		NatsURL:         strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_URL")),
+		NatsStream:      strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_STREAM")),
 
 		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
 		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", false),
@@ -75,6 +67,9 @@ func FromEnv() Config {
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddr
+	}
+	if cfg.NatsStream == "" {
+		cfg.NatsStream = "SLACK_WORK"
 	}
 	return cfg
 }

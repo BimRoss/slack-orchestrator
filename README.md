@@ -23,7 +23,7 @@ go run ./cmd/slack-orchestrator
 
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
-- `GET /metrics` — Prometheus (Socket Mode state, acks; delegate metrics reserved for HTTP dispatch)
+- `GET /metrics` — Prometheus (Socket Mode state, acks; JetStream delegate metrics when dispatch is enabled)
 - `GET /debug/decisions?limit=100` — JSON decision log (last N in-memory entries). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
   - **`ORCHESTRATOR_DEBUG_ALLOW_ANON=true`**: no `Authorization` header (convenience; use behind firewall or turn off later).
   - Otherwise **`ORCHESTRATOR_DEBUG_TOKEN`** must be set and requests must send `Authorization: Bearer <token>`. If the token is unset and anon is off, the endpoint returns **503**.
@@ -51,11 +51,11 @@ Example **PromQL** (adjust job/namespace labels to your scrape config):
   `slack_orchestrator_socket_mode_state == 2`
 - **Events API ack rate (per second):**  
   `rate(slack_orchestrator_events_api_acked_total[5m])`
-- **Delegate dispatch (when Phase 2 HTTP is enabled):**  
-  `rate(slack_orchestrator_delegate_post_total[5m])`  
-  `histogram_quantile(0.95, sum(rate(slack_orchestrator_delegate_http_request_seconds_bucket[5m])) by (le, result))`
+- **Delegate dispatch (when JetStream dispatch is enabled):**  
+  `rate(slack_orchestrator_delegate_publish_total[5m])`  
+  `histogram_quantile(0.95, sum(rate(slack_orchestrator_delegate_publish_seconds_bucket[5m])) by (le, result))`
 
-When **`ORCHESTRATOR_DISPATCH_ENABLED=true`** and **`ORCHESTRATOR_WORKER_URL_TEMPLATE`** is set, `slack_orchestrator_delegate_*` metrics reflect outbound POSTs (retries on **503**; HMAC signing when **`ORCHESTRATOR_WORKER_HMAC_SECRET`** is set). Workers expose **`POST /internal/slack/event`** (see **employee-factory**).
+When **`ORCHESTRATOR_DISPATCH_ENABLED=true`** and **`ORCHESTRATOR_NATS_URL`** is set, the orchestrator publishes JSON (**`internal/inbound/v1`**) to **`slack.work.<employee>.events`** on stream **`ORCHESTRATOR_NATS_STREAM`** (default **`SLACK_WORK`**). Workers consume via **`NATS_URL`** (see **employee-factory**).
 
 ## Env
 
@@ -64,7 +64,7 @@ See [`.env.example`](.env.example). Important:
 - **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled**; the shuffle seed is **derived from the map** (optional `MULTIAGENT_SHUFFLE_SECRET` override only). Optional `MULTIAGENT_ORDER` overrides for emergencies.
 - `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
 - `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
-- **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_WORKER_URL_TEMPLATE` (must include `{employee}`), `ORCHESTRATOR_WORKER_HMAC_SECRET`, `ORCHESTRATOR_DISPATCH_TIMEOUT_SEC`.
+- **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_NATS_URL`, `ORCHESTRATOR_NATS_STREAM` (default `SLACK_WORK`).
 
 ## Docker
 
@@ -107,8 +107,8 @@ ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
 3. Disable Socket Mode / message events on legacy employee Slack apps so only the orchestrator receives the firehose.  
 4. Optional: dedicated dev workspace later.
 
-## Phase 2 (dispatch)
+## Dispatch (JetStream)
 
-- **Implemented:** `POST` JSON (**`internal/inbound/v1`**) to each worker URL built from **`ORCHESTRATOR_WORKER_URL_TEMPLATE`** (e.g. `http://employee-factory-{employee}.employee-factory.svc.cluster.local:8080`), path **`/internal/slack/event`**. Toggle with **`ORCHESTRATOR_DISPATCH_ENABLED`**. Optional **HMAC** via **`ORCHESTRATOR_WORKER_HMAC_SECRET`** (header `X-BimRoss-Orchestrator-Signature: v1=<hex>`).
-- **Next:** wire worker handler to the existing Socket Mode pipeline (Redis dedupe, `SLACK_INGRESS=orchestrator`), then remove duplicate message subscriptions from agent apps.
+- **Implemented:** JSON (**`internal/inbound/v1`**) published to **`slack.work.<employee>.events`** per routing target. Toggle with **`ORCHESTRATOR_DISPATCH_ENABLED`**. Requires **`ORCHESTRATOR_NATS_URL`** (same NATS as worker **`NATS_URL`**). Stream/subjects are auto-created if missing.
+- **Workers:** `SLACK_INGRESS=orchestrator`, **`NATS_URL`**, durable pull consumer per employee (see **employee-factory** `internal/natsbus`).
 - **Roster / tools (future):** Redis map (employee → Slack bot user id, skills catalog ids). Until then: **`MULTIAGENT_BOT_USER_IDS`** in env.

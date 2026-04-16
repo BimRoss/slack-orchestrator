@@ -134,8 +134,8 @@ func dispatchNote(cfg config.Config, d routing.Decision) string {
 	if !cfg.DispatchEnabled {
 		return "dispatch_disabled"
 	}
-	if strings.TrimSpace(cfg.WorkerURLTemplate) == "" {
-		return "no_worker_template"
+	if strings.TrimSpace(cfg.NatsURL) == "" {
+		return "no_nats_url"
 	}
 	if len(d.Employees) == 0 {
 		return "no_employees"

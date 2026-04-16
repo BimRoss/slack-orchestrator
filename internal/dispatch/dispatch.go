@@ -1,17 +1,13 @@
 package dispatch
 
 import (
-	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
@@ -19,31 +15,57 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/inbound"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/routing"
+	"github.com/nats-io/nats.go"
 	"github.com/slack-go/slack/slackevents"
 )
 
-const (
-	pathOrchestratorEvent = "/internal/slack/event"
-	headerSignature       = "X-BimRoss-Orchestrator-Signature"
-	signaturePrefix       = "v1="
+var (
+	jsMu      sync.Mutex
+	jsConn    *nats.Conn
+	jsCtx     nats.JetStreamContext
+	jsURLUsed string
 )
 
-// Decision posts one JSON body per target employee in d.Employees.
+// Decision publishes one JSON message per target employee to JetStream (subject slack.work.<employee>.events).
 func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, d routing.Decision, innerType string) []decisionlog.DispatchResult {
+	_ = ctx
 	if !cfg.DispatchEnabled {
 		return nil
 	}
-	tpl := strings.TrimSpace(cfg.WorkerURLTemplate)
-	if tpl == "" {
-		slog.Warn("orchestrator_dispatch_skip", "reason", "missing_ORCHESTRATOR_WORKER_URL_TEMPLATE")
+	if strings.TrimSpace(cfg.NatsURL) == "" {
+		slog.Warn("orchestrator_dispatch_skip", "reason", "missing_ORCHESTRATOR_NATS_URL")
 		for range d.Employees {
-			metrics.DelegatePostTotal.WithLabelValues("skipped").Inc()
+			metrics.DelegatePublishTotal.WithLabelValues("skipped").Inc()
 		}
 		return nil
 	}
 	if len(d.Employees) == 0 {
 		return nil
 	}
+
+	js, err := jetStreamContext(cfg)
+	if err != nil {
+		slog.Error("orchestrator_dispatch_nats", "error", err)
+		for range d.Employees {
+			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
+			metrics.DelegatePublishErrorsTotal.Inc()
+		}
+		return nil
+	}
+
+	stream := strings.TrimSpace(cfg.NatsStream)
+	if stream == "" {
+		stream = "SLACK_WORK"
+	}
+	if err := ensureStream(js, stream); err != nil {
+		slog.Error("orchestrator_dispatch_stream", "error", err)
+		for range d.Employees {
+			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
+			metrics.DelegatePublishErrorsTotal.Inc()
+		}
+		return nil
+	}
+
 	var results []decisionlog.DispatchResult
 
 	eventID, eventTime, teamID, apiAppID := callbackMeta(outer)
@@ -64,7 +86,6 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		},
 	}
 
-	client := &http.Client{Timeout: cfg.DispatchHTTPTimeout}
 	for _, emp := range d.Employees {
 		emp = strings.ToLower(strings.TrimSpace(emp))
 		if emp == "" {
@@ -76,32 +97,83 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		body, err := json.Marshal(payload)
 		if err != nil {
 			slog.Error("orchestrator_dispatch_marshal", "error", err, "employee", emp)
-			metrics.DelegatePostTotal.WithLabelValues("failure").Inc()
-			metrics.DelegatePostErrorsTotal.Inc()
+			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
+			metrics.DelegatePublishErrorsTotal.Inc()
 			results = append(results, decisionlog.DispatchResult{Employee: emp, OK: false, Error: err.Error()})
 			continue
 		}
 
-		baseURL := strings.TrimRight(expandTemplate(tpl, emp), "/")
-		url := baseURL + pathOrchestratorEvent
-
+		subject := fmt.Sprintf("slack.work.%s.events", emp)
 		start := time.Now()
-		status, err := postWithRetries(ctx, client, url, body, cfg.WorkerHMACSecret)
-		elapsed := time.Since(start).Seconds()
-		if err != nil {
-			slog.Error("orchestrator_dispatch_post", "error", err, "employee", emp, "url", url)
-			metrics.DelegateHTTPRequestSeconds.WithLabelValues("failure").Observe(elapsed)
-			metrics.DelegatePostTotal.WithLabelValues("failure").Inc()
-			metrics.DelegatePostErrorsTotal.Inc()
-			results = append(results, decisionlog.DispatchResult{Employee: emp, OK: false, HTTPStatus: status, Error: err.Error()})
+		if _, err := js.Publish(subject, body); err != nil {
+			slog.Error("orchestrator_dispatch_publish", "error", err, "employee", emp, "subject", subject)
+			metrics.DelegatePublishSeconds.WithLabelValues("failure").Observe(time.Since(start).Seconds())
+			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
+			metrics.DelegatePublishErrorsTotal.Inc()
+			results = append(results, decisionlog.DispatchResult{Employee: emp, OK: false, Error: err.Error()})
 			continue
 		}
-		metrics.DelegateHTTPRequestSeconds.WithLabelValues("success").Observe(elapsed)
-		metrics.DelegatePostTotal.WithLabelValues("success").Inc()
-		slog.Info("orchestrator_dispatch_ok", "employee", emp, "http_status", status)
-		results = append(results, decisionlog.DispatchResult{Employee: emp, OK: true, HTTPStatus: status})
+		metrics.DelegatePublishSeconds.WithLabelValues("success").Observe(time.Since(start).Seconds())
+		metrics.DelegatePublishTotal.WithLabelValues("success").Inc()
+		slog.Info("orchestrator_dispatch_ok", "employee", emp, "subject", subject)
+		results = append(results, decisionlog.DispatchResult{Employee: emp, OK: true})
 	}
 	return results
+}
+
+func jetStreamContext(cfg config.Config) (nats.JetStreamContext, error) {
+	want := strings.TrimSpace(cfg.NatsURL)
+	if want == "" {
+		return nil, fmt.Errorf("empty NATS url")
+	}
+
+	jsMu.Lock()
+	defer jsMu.Unlock()
+
+	if jsConn != nil && jsConn.IsConnected() && jsURLUsed == want && jsCtx != nil {
+		return jsCtx, nil
+	}
+	if jsConn != nil {
+		_ = jsConn.Drain()
+		jsConn = nil
+		jsCtx = nil
+	}
+
+	nc, err := nats.Connect(want,
+		nats.Name("slack-orchestrator"),
+		nats.Timeout(20*time.Second),
+		nats.MaxReconnects(-1),
+		nats.ReconnectWait(time.Second),
+	)
+	if err != nil {
+		return nil, err
+	}
+	jet, err := nc.JetStream()
+	if err != nil {
+		_ = nc.Drain()
+		return nil, err
+	}
+	jsConn = nc
+	jsCtx = jet
+	jsURLUsed = want
+	return jsCtx, nil
+}
+
+func ensureStream(js nats.JetStreamContext, name string) error {
+	if _, err := js.StreamInfo(name); err == nil {
+		return nil
+	} else if !errors.Is(err, nats.ErrStreamNotFound) {
+		return fmt.Errorf("stream info %q: %w", name, err)
+	}
+	_, err := js.AddStream(&nats.StreamConfig{
+		Name:     name,
+		Subjects: []string{"slack.work.*.events"},
+		Storage:  nats.FileStorage,
+	})
+	if err != nil {
+		return fmt.Errorf("add stream %q: %w", name, err)
+	}
+	return nil
 }
 
 func callbackMeta(ev slackevents.EventsAPIEvent) (eventID string, eventTime int, teamID, apiAppID string) {
@@ -109,52 +181,4 @@ func callbackMeta(ev slackevents.EventsAPIEvent) (eventID string, eventTime int,
 		return cb.EventID, cb.EventTime, cb.TeamID, cb.APIAppID
 	}
 	return "", 0, strings.TrimSpace(ev.TeamID), strings.TrimSpace(ev.APIAppID)
-}
-
-func expandTemplate(tpl, employeeKey string) string {
-	return strings.ReplaceAll(tpl, "{employee}", employeeKey)
-}
-
-func postWithRetries(ctx context.Context, client *http.Client, url string, body []byte, secret string) (httpStatus int, err error) {
-	const maxAttempts = 3
-	var lastErr error
-	for attempt := 0; attempt < maxAttempts; attempt++ {
-		if attempt > 0 {
-			select {
-			case <-ctx.Done():
-				return 0, ctx.Err()
-			case <-time.After(time.Duration(50*(1<<uint(attempt-1))) * time.Millisecond):
-			}
-		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
-		if err != nil {
-			return 0, err
-		}
-		req.Header.Set("Content-Type", "application/json")
-		if secret != "" {
-			mac := hmac.New(sha256.New, []byte(secret))
-			mac.Write(body)
-			req.Header.Set(headerSignature, signaturePrefix+hex.EncodeToString(mac.Sum(nil)))
-		}
-
-		resp, err := client.Do(req)
-		if err != nil {
-			lastErr = err
-			continue
-		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode == http.StatusServiceUnavailable && attempt < maxAttempts-1 {
-			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
-			continue
-		}
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			return resp.StatusCode, fmt.Errorf("HTTP %d", resp.StatusCode)
-		}
-		return resp.StatusCode, nil
-	}
-	if lastErr != nil {
-		return 0, lastErr
-	}
-	return 0, fmt.Errorf("exhausted retries")
 }

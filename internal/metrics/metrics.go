@@ -29,25 +29,25 @@ var (
 		Help:      "Total Events API Socket Mode envelopes acknowledged",
 	})
 
-	// DelegatePostTotal counts outbound delegate HTTP attempts (Phase 2+). Labels: result=success|failure|skipped.
-	DelegatePostTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	// DelegatePublishTotal counts JetStream publish attempts to worker runtimes. Labels: result=success|failure|skipped.
+	DelegatePublishTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "slack_orchestrator",
-		Name:      "delegate_post_total",
-		Help:      "Total delegate HTTP delivery attempts to worker runtimes",
+		Name:      "delegate_publish_total",
+		Help:      "Total JetStream publish deliveries to employee-factory workers",
 	}, []string{"result"})
 
-	// DelegatePostErrorsTotal counts delegate HTTP errors after retries or non-retryable failures.
-	DelegatePostErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{
+	// DelegatePublishErrorsTotal counts publish errors after failures.
+	DelegatePublishErrorsTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "slack_orchestrator",
-		Name:      "delegate_post_errors_total",
-		Help:      "Total delegate HTTP deliveries that failed (non-success path)",
+		Name:      "delegate_publish_errors_total",
+		Help:      "Total JetStream publishes that failed",
 	})
 
-	// DelegateHTTPRequestSeconds observes delegate HTTP request duration when dispatch is enabled.
-	DelegateHTTPRequestSeconds = promauto.NewHistogramVec(prometheus.HistogramOpts{
+	// DelegatePublishSeconds observes JetStream publish latency when dispatch is enabled.
+	DelegatePublishSeconds = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Namespace: "slack_orchestrator",
-		Name:      "delegate_http_request_seconds",
-		Help:      "Latency of delegate HTTP POSTs to worker runtimes",
+		Name:      "delegate_publish_seconds",
+		Help:      "Latency of JetStream publishes to worker runtimes",
 		Buckets:   prometheus.DefBuckets,
 	}, []string{"result"})
 )
