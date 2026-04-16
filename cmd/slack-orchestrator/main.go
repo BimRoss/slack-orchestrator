@@ -53,7 +53,8 @@ func main() {
 		return
 	}
 
-	api := slack.New(cfg.BotToken)
+	// Socket Mode requires the app-level token on the API client (apps.connections.open).
+	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
 	client := socketmode.New(api)
 
 	go func() {
