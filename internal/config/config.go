@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Config holds runtime settings loaded from the environment.
@@ -17,12 +18,19 @@ type Config struct {
 	EveryoneLimit   int
 	ChannelLimit    int
 	LogJSON         bool
+
+	// DispatchEnabled POSTs routing decisions to per-employee worker URLs (Phase 2).
+	DispatchEnabled     bool
+	WorkerURLTemplate   string
+	WorkerHMACSecret    string
+	DispatchHTTPTimeout time.Duration
 }
 
 const (
-	defaultHTTPAddr      = ":8080"
-	defaultEveryoneLimit = 5
-	defaultChannelLimit  = 3
+	defaultHTTPAddr           = ":8080"
+	defaultEveryoneLimit      = 5
+	defaultChannelLimit       = 3
+	defaultDispatchTimeoutSec = 10
 )
 
 // FromEnv loads configuration. Missing SLACK_BOT_TOKEN / SLACK_APP_TOKEN is allowed for routing-only tests.
@@ -34,6 +42,10 @@ func FromEnv() Config {
 	}
 	explicitOrder := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
 	order := ResolveMultiagentOrder(explicitOrder, botMap, shuffle)
+	dispatchTimeoutSec := getenvInt("ORCHESTRATOR_DISPATCH_TIMEOUT_SEC", defaultDispatchTimeoutSec)
+	if dispatchTimeoutSec < 1 {
+		dispatchTimeoutSec = defaultDispatchTimeoutSec
+	}
 	cfg := Config{
 		HTTPAddr:        strings.TrimSpace(os.Getenv("HTTP_ADDR")),
 		BotToken:        strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")),
@@ -44,6 +56,11 @@ func FromEnv() Config {
 		EveryoneLimit:   getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
 		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
 		LogJSON:         logJSONDefaultTrue(os.Getenv("LOG_JSON")),
+
+		DispatchEnabled:     parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
+		WorkerURLTemplate:   strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_URL_TEMPLATE")),
+		WorkerHMACSecret:    strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_HMAC_SECRET")),
+		DispatchHTTPTimeout: time.Duration(dispatchTimeoutSec) * time.Second,
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddr
@@ -127,6 +144,21 @@ func logJSONDefaultTrue(raw string) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+func parseBoolEnv(key string, def bool) bool {
+	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if v == "" {
+		return def
+	}
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return def
 	}
 }
 

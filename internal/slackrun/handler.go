@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
+	"github.com/bimross/slack-orchestrator/internal/dispatch"
 	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/slack-go/slack/slackevents"
 )
@@ -15,16 +16,16 @@ import (
 func HandleEventsAPI(ctx context.Context, cfg config.Config, ev slackevents.EventsAPIEvent) {
 	switch inner := ev.InnerEvent.Data.(type) {
 	case *slackevents.MessageEvent:
-		handleMessage(cfg, inner)
+		handleMessage(ctx, cfg, ev, inner)
 	case *slackevents.AppMentionEvent:
-		handleAppMention(cfg, inner)
+		handleAppMention(ctx, cfg, ev, inner)
 	default:
 		_ = ctx
 		// ignore other event types in phase 1
 	}
 }
 
-func handleMessage(cfg config.Config, ev *slackevents.MessageEvent) {
+func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, ev *slackevents.MessageEvent) {
 	if ev.User == "" || ev.BotID != "" {
 		return
 	}
@@ -46,10 +47,10 @@ func handleMessage(cfg config.Config, ev *slackevents.MessageEvent) {
 		UserID:    ev.User,
 		Text:      text,
 	}
-	emitDecision(cfg, in)
+	emitDecision(ctx, cfg, outer, in, "message")
 }
 
-func handleAppMention(cfg config.Config, ev *slackevents.AppMentionEvent) {
+func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, ev *slackevents.AppMentionEvent) {
 	text := strings.TrimSpace(ev.Text)
 	if text == "" {
 		return
@@ -61,10 +62,10 @@ func handleAppMention(cfg config.Config, ev *slackevents.AppMentionEvent) {
 		UserID:    ev.User,
 		Text:      text,
 	}
-	emitDecision(cfg, in)
+	emitDecision(ctx, cfg, outer, in, "app_mention")
 }
 
-func emitDecision(cfg config.Config, in routing.Input) {
+func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, innerType string) {
 	rc := routing.DecideConfig{
 		Order:         cfg.MultiagentOrder,
 		BotUserToKey:  cfg.BotUserToKey,
@@ -75,10 +76,10 @@ func emitDecision(cfg config.Config, in routing.Input) {
 	d := routing.Decide(rc, in)
 	if cfg.LogJSON {
 		b, _ := json.Marshal(struct {
-			ChannelID string          `json:"channel_id"`
-			ThreadTS  string          `json:"thread_ts"`
-			MessageTS string          `json:"message_ts"`
-			UserID    string          `json:"user_id"`
+			ChannelID string           `json:"channel_id"`
+			ThreadTS  string           `json:"thread_ts"`
+			MessageTS string           `json:"message_ts"`
+			UserID    string           `json:"user_id"`
 			Decision  routing.Decision `json:"decision"`
 		}{
 			ChannelID: in.ChannelID,
@@ -88,6 +89,7 @@ func emitDecision(cfg config.Config, in routing.Input) {
 			Decision:  d,
 		})
 		slog.Info(string(b))
+		dispatch.Decision(ctx, cfg, outer, in, d, innerType)
 		return
 	}
 	slog.Info("routing_decision",
@@ -100,4 +102,5 @@ func emitDecision(cfg config.Config, in routing.Input) {
 		"kind", d.Kind,
 		"tool_id", d.ToolID,
 	)
+	dispatch.Decision(ctx, cfg, outer, in, d, innerType)
 }

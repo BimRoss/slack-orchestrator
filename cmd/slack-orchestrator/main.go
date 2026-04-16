@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
+	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
@@ -35,6 +37,7 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
+	mux.Handle("/metrics", promhttp.Handler())
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	go func() {
 		slog.Info("http_listen", "addr", cfg.HTTPAddr)
@@ -61,17 +64,24 @@ func main() {
 		for evt := range client.Events {
 			switch evt.Type {
 			case socketmode.EventTypeConnecting:
+				metrics.SocketModeState.Set(metrics.SocketStateConnecting)
 				slog.Info("socket_mode", "state", "connecting")
 			case socketmode.EventTypeConnectionError:
+				metrics.SocketModeState.Set(metrics.SocketStateConnectionError)
 				slog.Warn("socket_mode", "state", "connection_error")
 			case socketmode.EventTypeConnected:
+				metrics.SocketModeState.Set(metrics.SocketStateConnected)
 				slog.Info("socket_mode", "state", "connected")
+			case socketmode.EventTypeDisconnect:
+				metrics.SocketModeState.Set(metrics.SocketStateDisconnected)
+				slog.Info("socket_mode", "state", "disconnect")
 			case socketmode.EventTypeEventsAPI:
 				eventsAPI, ok := evt.Data.(slackevents.EventsAPIEvent)
 				if !ok {
 					continue
 				}
 				client.Ack(*evt.Request)
+				metrics.EventsAPIAckedTotal.Inc()
 				slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
 			default:
 				// Ack other interactive events if needed
