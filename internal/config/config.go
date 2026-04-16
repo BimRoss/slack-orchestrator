@@ -43,8 +43,7 @@ func FromEnv() Config {
 		BotUserToKey:    botMap,
 		EveryoneLimit:   getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
 		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
-		LogJSON: strings.EqualFold(strings.TrimSpace(os.Getenv("LOG_JSON")), "1") ||
-			strings.EqualFold(strings.TrimSpace(os.Getenv("LOG_JSON")), "true"),
+		LogJSON:         logJSONDefaultTrue(os.Getenv("LOG_JSON")),
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddr
@@ -115,6 +114,20 @@ func parseBotUserMapPositional(s string) map[string]string {
 		i++
 	}
 	return out
+}
+
+// logJSONDefaultTrue: JSON structured logs on by default; set LOG_JSON=false, 0, no, or off to disable.
+func logJSONDefaultTrue(raw string) bool {
+	s := strings.TrimSpace(strings.ToLower(raw))
+	if s == "" {
+		return true
+	}
+	switch s {
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return true
+	}
 }
 
 func getenvInt(key string, def int) int {

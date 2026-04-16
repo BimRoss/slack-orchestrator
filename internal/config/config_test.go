@@ -20,3 +20,15 @@ func TestParseBotUserMap_explicit(t *testing.T) {
 		t.Fatalf("got %#v want %#v", got, want)
 	}
 }
+
+func TestLogJSONDefaultTrue(t *testing.T) {
+	if !logJSONDefaultTrue("") {
+		t.Fatal("empty should default true")
+	}
+	if !logJSONDefaultTrue("true") {
+		t.Fatal("true")
+	}
+	if logJSONDefaultTrue("false") || logJSONDefaultTrue("0") || logJSONDefaultTrue("off") {
+		t.Fatal("explicit false")
+	}
+}

@@ -24,7 +24,7 @@ go run ./cmd/slack-orchestrator
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
 
-Set `LOG_JSON=true` for one JSON log line per routed message (includes `decision`).
+Structured JSON logs are **on by default** (`decision` per message). Set `LOG_JSON=false` to disable.
 
 ## Env
 
