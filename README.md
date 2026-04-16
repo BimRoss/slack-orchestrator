@@ -6,8 +6,8 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 
 | Trigger | Behavior |
 |--------|----------|
-| `<!everyone>` / `@everyone` | First **N** employees in `MULTIAGENT_ORDER` (default **5**) — `conversation` |
-| `<!channel>` / `@channel` | First **N** (default **3**) — `conversation` |
+| `<!everyone>` / `@everyone` | First **N** in the **resolved roster** (default **5**) — `conversation` |
+| `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
 | Squad `@mention` | First mentioned employee; `tool` vs `conversation` from keyword classifier |
 | Plain channel message | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
 
@@ -30,8 +30,8 @@ Set `LOG_JSON=true` for one JSON log line per routed message (includes `decision
 
 See [`.env.example`](.env.example). Important:
 
-- `MULTIAGENT_ORDER` — comma-separated keys (e.g. `alex,tim,ross,garth,joanne`).
-- `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee.
+- **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled** with `MULTIAGENT_SHUFFLE_SECRET` (no fixed name order in repo). Optional `MULTIAGENT_ORDER` overrides for emergencies.
+- `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
 - `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
 
 ## Docker

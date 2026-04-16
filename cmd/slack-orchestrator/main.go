@@ -43,6 +43,9 @@ func main() {
 		}
 	}()
 
+	if len(cfg.MultiagentOrder) == 0 {
+		slog.Warn("multiagent_roster_empty", "msg", "set MULTIAGENT_BOT_USER_IDS (roster is derived and shuffled) or optional MULTIAGENT_ORDER override")
+	}
 	if cfg.BotToken == "" || cfg.AppToken == "" {
 		slog.Warn("slack_tokens_missing", "msg", "set SLACK_BOT_TOKEN and SLACK_APP_TOKEN to enable Socket Mode")
 		<-ctx.Done()

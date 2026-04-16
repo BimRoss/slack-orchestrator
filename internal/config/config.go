@@ -8,15 +8,15 @@ import (
 
 // Config holds runtime settings loaded from the environment.
 type Config struct {
-	HTTPAddr         string
-	BotToken         string
-	AppToken         string
-	ShuffleSecret    string
-	MultiagentOrder  []string
-	BotUserToKey     map[string]string // Slack bot user ID -> employee key (alex, tim, …)
-	EveryoneLimit    int
-	ChannelLimit     int
-	LogJSON          bool
+	HTTPAddr        string
+	BotToken        string
+	AppToken        string
+	ShuffleSecret   string
+	MultiagentOrder []string
+	BotUserToKey    map[string]string // Slack bot user ID -> employee key (alex, tim, …)
+	EveryoneLimit   int
+	ChannelLimit    int
+	LogJSON         bool
 }
 
 const (
@@ -27,27 +27,27 @@ const (
 
 // FromEnv loads configuration. Missing SLACK_BOT_TOKEN / SLACK_APP_TOKEN is allowed for routing-only tests.
 func FromEnv() Config {
-	order := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
-	if len(order) == 0 {
-		order = []string{"alex", "tim", "ross", "garth", "joanne"}
+	botMap := parseBotUserMap(os.Getenv("MULTIAGENT_BOT_USER_IDS"))
+	shuffle := strings.TrimSpace(os.Getenv("MULTIAGENT_SHUFFLE_SECRET"))
+	if shuffle == "" {
+		shuffle = "dev-insecure-change-me"
 	}
+	explicitOrder := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
+	order := ResolveMultiagentOrder(explicitOrder, botMap, shuffle)
 	cfg := Config{
 		HTTPAddr:        strings.TrimSpace(os.Getenv("HTTP_ADDR")),
 		BotToken:        strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")),
 		AppToken:        strings.TrimSpace(os.Getenv("SLACK_APP_TOKEN")),
-		ShuffleSecret:   strings.TrimSpace(os.Getenv("MULTIAGENT_SHUFFLE_SECRET")),
+		ShuffleSecret:   shuffle,
 		MultiagentOrder: order,
-		BotUserToKey:    parseBotUserMap(os.Getenv("MULTIAGENT_BOT_USER_IDS")),
+		BotUserToKey:    botMap,
 		EveryoneLimit:   getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
 		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
-		LogJSON:         strings.EqualFold(strings.TrimSpace(os.Getenv("LOG_JSON")), "1") ||
+		LogJSON: strings.EqualFold(strings.TrimSpace(os.Getenv("LOG_JSON")), "1") ||
 			strings.EqualFold(strings.TrimSpace(os.Getenv("LOG_JSON")), "true"),
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddr
-	}
-	if cfg.ShuffleSecret == "" {
-		cfg.ShuffleSecret = "dev-insecure-change-me"
 	}
 	return cfg
 }
