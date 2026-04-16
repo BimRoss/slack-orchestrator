@@ -33,7 +33,8 @@ type Decision struct {
 	ToolID    string   `json:"tool_id,omitempty"`
 }
 
-var reSlackUserMention = regexp.MustCompile(`<@(U[A-Za-z0-9]+)>`)
+// Slack user mentions in message text (bot user ids are typically U…; include A for app-style ids when present).
+var reSlackUserMention = regexp.MustCompile(`<@([UWA][A-Za-z0-9]+)>`)
 
 // Input is a normalized Slack message.
 type Input struct {

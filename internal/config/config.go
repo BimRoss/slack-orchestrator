@@ -68,13 +68,20 @@ func splitCSV(s string) []string {
 	return out
 }
 
-// MULTIAGENT_BOT_USER_IDS format: alex=Uxxx,tim=Uyyy,...
+// Default squad order when MULTIAGENT_BOT_USER_IDS is a comma-separated list of Slack IDs without "name=".
+var defaultSquadOrder = []string{"alex", "tim", "ross", "garth", "joanne"}
+
+// MULTIAGENT_BOT_USER_IDS: either alex=Uxxx,tim=Uyyy,... or a comma-separated list of Slack user IDs
+// in default squad order (alex → … → joanne), same length convention as employee-factory.
 func parseBotUserMap(s string) map[string]string {
-	out := make(map[string]string)
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return out
+		return nil
 	}
+	if !strings.Contains(s, "=") {
+		return parseBotUserMapPositional(s)
+	}
+	out := make(map[string]string)
 	for _, pair := range strings.Split(s, ",") {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
@@ -89,6 +96,23 @@ func parseBotUserMap(s string) map[string]string {
 		if key != "" && uid != "" {
 			out[uid] = key
 		}
+	}
+	return out
+}
+
+func parseBotUserMapPositional(s string) map[string]string {
+	out := make(map[string]string)
+	i := 0
+	for _, pair := range strings.Split(s, ",") {
+		uid := strings.TrimSpace(pair)
+		if uid == "" {
+			continue
+		}
+		if i >= len(defaultSquadOrder) {
+			break
+		}
+		out[uid] = defaultSquadOrder[i]
+		i++
 	}
 	return out
 }
