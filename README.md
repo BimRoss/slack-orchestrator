@@ -77,4 +77,6 @@ ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
 
 ## Phase 2
 
-HTTP (or queue) dispatch from orchestrator to per-employee runtimes; keep routing policy centralized here.
+- **Dispatch:** HTTP (or queue) from orchestrator to per-employee runtimes; routing policy stays here.
+- **Roster / tools (future source of truth):** a **Redis** map (employee → Slack **bot user id**, tool / capability ids aligned with the skills catalog). Same IDs you already use in **employee-factory**; orchestrator stays thin. **Admin UI** can own writes later; **Slack / ops** is fine until then.
+- **Now:** `MULTIAGENT_BOT_USER_IDS` + shuffle secret in env — bootstrap only, not the long-term config surface.
