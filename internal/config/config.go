@@ -25,8 +25,10 @@ type Config struct {
 	WorkerHMACSecret    string
 	DispatchHTTPTimeout time.Duration
 
-	// DebugToken enables GET /debug/decisions (Bearer). Empty = endpoint disabled.
+	// DebugToken enables GET /debug/decisions (Bearer). Empty = endpoint disabled unless DebugAllowAnon.
 	DebugToken string
+	// DebugAllowAnon allows GET /debug/decisions without Authorization (operator convenience; lock down later).
+	DebugAllowAnon bool
 	// DecisionLogMax is the max in-memory decision entries (ring via slice trim).
 	DecisionLogMax int
 }
@@ -68,6 +70,7 @@ func FromEnv() Config {
 		DispatchHTTPTimeout: time.Duration(dispatchTimeoutSec) * time.Second,
 
 		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
+		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", false),
 		DecisionLogMax: getenvInt("ORCHESTRATOR_DECISION_LOG_MAX", defaultDecisionLogMax),
 	}
 	if cfg.HTTPAddr == "" {

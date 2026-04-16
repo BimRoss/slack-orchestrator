@@ -111,24 +111,27 @@ func truncateRunes(s string, max int) string {
 	return string(runes) + "…"
 }
 
-// HTTPHandler serves GET /debug/decisions?limit=100 with Authorization: Bearer <token>.
-// If token is empty, returns 503 (endpoint disabled).
-func HTTPHandler(store *Store, token string) http.HandlerFunc {
+// HTTPHandler serves GET /debug/decisions?limit=100.
+// If allowAnon is false, requires Authorization: Bearer <token> and token must be non-empty.
+// If allowAnon is true, no auth (use only on trusted networks; prefer token in production).
+func HTTPHandler(store *Store, token string, allowAnon bool) http.HandlerFunc {
 	token = strings.TrimSpace(token)
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		if token == "" {
-			http.Error(w, "debug endpoint disabled", http.StatusServiceUnavailable)
-			return
-		}
-		auth := strings.TrimSpace(r.Header.Get("Authorization"))
-		const p = "Bearer "
-		if !strings.HasPrefix(auth, p) || strings.TrimSpace(auth[len(p):]) != token {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
+		if !allowAnon {
+			if token == "" {
+				http.Error(w, "debug endpoint disabled", http.StatusServiceUnavailable)
+				return
+			}
+			auth := strings.TrimSpace(r.Header.Get("Authorization"))
+			const p = "Bearer "
+			if !strings.HasPrefix(auth, p) || strings.TrimSpace(auth[len(p):]) != token {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 		}
 		limit := 100
 		if q := strings.TrimSpace(r.URL.Query().Get("limit")); q != "" {

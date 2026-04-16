@@ -41,7 +41,7 @@ func main() {
 	mux.Handle("/metrics", promhttp.Handler())
 	logStore := decisionlog.New(cfg.DecisionLogMax)
 	slackrun.SetDecisionLog(logStore)
-	mux.HandleFunc("/debug/decisions", decisionlog.HTTPHandler(logStore, cfg.DebugToken))
+	mux.HandleFunc("/debug/decisions", decisionlog.HTTPHandler(logStore, cfg.DebugToken, cfg.DebugAllowAnon))
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	go func() {
 		slog.Info("http_listen", "addr", cfg.HTTPAddr)

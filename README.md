@@ -24,9 +24,11 @@ go run ./cmd/slack-orchestrator
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
 - `GET /metrics` — Prometheus (Socket Mode state, acks; delegate metrics reserved for HTTP dispatch)
-- `GET /debug/decisions?limit=100` — JSON decision log (last N in-memory entries) when **`ORCHESTRATOR_DEBUG_TOKEN`** is set; requires `Authorization: Bearer <token>`. Empty token disables the endpoint (503). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
+- `GET /debug/decisions?limit=100` — JSON decision log (last N in-memory entries). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
+  - **`ORCHESTRATOR_DEBUG_ALLOW_ANON=true`**: no `Authorization` header (convenience; use behind firewall or turn off later).
+  - Otherwise **`ORCHESTRATOR_DEBUG_TOKEN`** must be set and requests must send `Authorization: Bearer <token>`. If the token is unset and anon is off, the endpoint returns **503**.
 
-The **makeacompany.ai** operator page **`/orchestrator`** proxies to this URL from the cluster (see **`ORCHESTRATOR_DEBUG_BASE_URL`** on the frontend + the same bearer token in **`makeacompany-ai-runtime-secrets`** as **`ORCHESTRATOR_DEBUG_TOKEN`**).
+The **makeacompany.ai** page **`/orchestrator`** proxies via **`ORCHESTRATOR_DEBUG_BASE_URL`** on the frontend; set **`ORCHESTRATOR_DEBUG_ALLOW_ANON`** the same on both services, or use a shared **`ORCHESTRATOR_DEBUG_TOKEN`** in `makeacompany-ai-runtime-secrets` and orchestrator secrets.
 
 Structured JSON logs are **on by default** (`decision` per message). Set `LOG_JSON=false` to disable.
 
