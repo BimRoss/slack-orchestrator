@@ -30,7 +30,7 @@ func FromEnv() Config {
 	botMap := parseBotUserMap(os.Getenv("MULTIAGENT_BOT_USER_IDS"))
 	shuffle := strings.TrimSpace(os.Getenv("MULTIAGENT_SHUFFLE_SECRET"))
 	if shuffle == "" {
-		shuffle = "dev-insecure-change-me"
+		shuffle = DerivedShuffleSeed(botMap)
 	}
 	explicitOrder := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
 	order := ResolveMultiagentOrder(explicitOrder, botMap, shuffle)

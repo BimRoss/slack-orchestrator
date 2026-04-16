@@ -30,7 +30,7 @@ Set `LOG_JSON=true` for one JSON log line per routed message (includes `decision
 
 See [`.env.example`](.env.example). Important:
 
-- **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled** with `MULTIAGENT_SHUFFLE_SECRET` (no fixed name order in repo). Optional `MULTIAGENT_ORDER` overrides for emergencies.
+- **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled**; the shuffle seed is **derived from the map** (optional `MULTIAGENT_SHUFFLE_SECRET` override only). Optional `MULTIAGENT_ORDER` overrides for emergencies.
 - `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
 - `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
 
@@ -79,4 +79,4 @@ ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
 
 - **Dispatch:** HTTP (or queue) from orchestrator to per-employee runtimes; routing policy stays here.
 - **Roster / tools (future source of truth):** a **Redis** map (employee → Slack **bot user id**, tool / capability ids aligned with the skills catalog). Same IDs you already use in **employee-factory**; orchestrator stays thin. **Admin UI** can own writes later; **Slack / ops** is fine until then.
-- **Now:** `MULTIAGENT_BOT_USER_IDS` + shuffle secret in env — bootstrap only, not the long-term config surface.
+- **Now:** `MULTIAGENT_BOT_USER_IDS` in env (bootstrap only, not the long-term config surface).

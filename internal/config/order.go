@@ -3,10 +3,35 @@ package config
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"math/rand"
 	"sort"
 	"strings"
 )
+
+// DerivedShuffleSeed builds a stable seed from the bot roster map so roster shuffle and plain-message
+// routing do not require MULTIAGENT_SHUFFLE_SECRET. Same roster → same seed across restarts.
+func DerivedShuffleSeed(botUserToKey map[string]string) string {
+	if len(botUserToKey) == 0 {
+		return "bimross-no-roster-v1"
+	}
+	var uids []string
+	for uid := range botUserToKey {
+		uids = append(uids, uid)
+	}
+	sort.Strings(uids)
+	var b strings.Builder
+	for i, uid := range uids {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		b.WriteString(uid)
+		b.WriteByte('=')
+		b.WriteString(strings.ToLower(strings.TrimSpace(botUserToKey[uid])))
+	}
+	sum := sha256.Sum256([]byte("bimross.shuffle.seed.v1\x00" + b.String()))
+	return hex.EncodeToString(sum[:])
+}
 
 // ResolveMultiagentOrder builds the squad roster for routing.
 //

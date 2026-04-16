@@ -39,3 +39,12 @@ func TestResolveMultiagentOrder_emptyMap(t *testing.T) {
 		t.Fatalf("got %v want nil", got)
 	}
 }
+
+func TestDerivedShuffleSeed_stable(t *testing.T) {
+	m := map[string]string{"U2": "tim", "U1": "alex"}
+	a := DerivedShuffleSeed(m)
+	b := DerivedShuffleSeed(m)
+	if a != b || len(a) != 64 {
+		t.Fatalf("seed=%q len=%d", a, len(a))
+	}
+}
