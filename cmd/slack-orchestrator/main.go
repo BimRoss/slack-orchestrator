@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
+	"github.com/bimross/slack-orchestrator/internal/decisionlog"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -38,6 +39,9 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
+	logStore := decisionlog.New(cfg.DecisionLogMax)
+	slackrun.SetDecisionLog(logStore)
+	mux.HandleFunc("/debug/decisions", decisionlog.HTTPHandler(logStore, cfg.DebugToken))
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	go func() {
 		slog.Info("http_listen", "addr", cfg.HTTPAddr)

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
+	"github.com/bimross/slack-orchestrator/internal/decisionlog"
 	"github.com/bimross/slack-orchestrator/internal/inbound"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/routing"
@@ -28,9 +29,9 @@ const (
 )
 
 // Decision posts one JSON body per target employee in d.Employees.
-func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, d routing.Decision, innerType string) {
+func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, d routing.Decision, innerType string) []decisionlog.DispatchResult {
 	if !cfg.DispatchEnabled {
-		return
+		return nil
 	}
 	tpl := strings.TrimSpace(cfg.WorkerURLTemplate)
 	if tpl == "" {
@@ -38,11 +39,12 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		for range d.Employees {
 			metrics.DelegatePostTotal.WithLabelValues("skipped").Inc()
 		}
-		return
+		return nil
 	}
 	if len(d.Employees) == 0 {
-		return
+		return nil
 	}
+	var results []decisionlog.DispatchResult
 
 	eventID, eventTime, teamID, apiAppID := callbackMeta(outer)
 	payloadBase := inbound.EventV1{
@@ -76,6 +78,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			slog.Error("orchestrator_dispatch_marshal", "error", err, "employee", emp)
 			metrics.DelegatePostTotal.WithLabelValues("failure").Inc()
 			metrics.DelegatePostErrorsTotal.Inc()
+			results = append(results, decisionlog.DispatchResult{Employee: emp, OK: false, Error: err.Error()})
 			continue
 		}
 
@@ -90,12 +93,15 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			metrics.DelegateHTTPRequestSeconds.WithLabelValues("failure").Observe(elapsed)
 			metrics.DelegatePostTotal.WithLabelValues("failure").Inc()
 			metrics.DelegatePostErrorsTotal.Inc()
+			results = append(results, decisionlog.DispatchResult{Employee: emp, OK: false, HTTPStatus: status, Error: err.Error()})
 			continue
 		}
 		metrics.DelegateHTTPRequestSeconds.WithLabelValues("success").Observe(elapsed)
 		metrics.DelegatePostTotal.WithLabelValues("success").Inc()
 		slog.Info("orchestrator_dispatch_ok", "employee", emp, "http_status", status)
+		results = append(results, decisionlog.DispatchResult{Employee: emp, OK: true, HTTPStatus: status})
 	}
+	return results
 }
 
 func callbackMeta(ev slackevents.EventsAPIEvent) (eventID string, eventTime int, teamID, apiAppID string) {

@@ -5,12 +5,21 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
+	"github.com/bimross/slack-orchestrator/internal/decisionlog"
 	"github.com/bimross/slack-orchestrator/internal/dispatch"
 	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/slack-go/slack/slackevents"
 )
+
+var decisionLog *decisionlog.Store
+
+// SetDecisionLog wires the in-memory decision log (optional).
+func SetDecisionLog(s *decisionlog.Store) {
+	decisionLog = s
+}
 
 // HandleEventsAPI logs a routing Decision for Socket Mode Events API payloads.
 func HandleEventsAPI(ctx context.Context, cfg config.Config, ev slackevents.EventsAPIEvent) {
@@ -74,6 +83,24 @@ func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.Even
 		ShuffleSecret: cfg.ShuffleSecret,
 	}
 	d := routing.Decide(rc, in)
+	results := dispatch.Decision(ctx, cfg, outer, in, d, innerType)
+	note := dispatchNote(cfg, d)
+
+	if decisionLog != nil {
+		decisionLog.Append(decisionlog.Entry{
+			Time:            time.Now().UTC(),
+			InnerType:       innerType,
+			ChannelID:       in.ChannelID,
+			ThreadTS:        in.ThreadTS,
+			MessageTS:       in.MessageTS,
+			UserID:          in.UserID,
+			TextPreview:     in.Text,
+			Decision:        d,
+			DispatchNote:    note,
+			DispatchResults: results,
+		})
+	}
+
 	if cfg.LogJSON {
 		b, _ := json.Marshal(struct {
 			ChannelID string           `json:"channel_id"`
@@ -89,7 +116,6 @@ func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.Even
 			Decision:  d,
 		})
 		slog.Info(string(b))
-		dispatch.Decision(ctx, cfg, outer, in, d, innerType)
 		return
 	}
 	slog.Info("routing_decision",
@@ -102,5 +128,17 @@ func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.Even
 		"kind", d.Kind,
 		"tool_id", d.ToolID,
 	)
-	dispatch.Decision(ctx, cfg, outer, in, d, innerType)
+}
+
+func dispatchNote(cfg config.Config, d routing.Decision) string {
+	if !cfg.DispatchEnabled {
+		return "dispatch_disabled"
+	}
+	if strings.TrimSpace(cfg.WorkerURLTemplate) == "" {
+		return "no_worker_template"
+	}
+	if len(d.Employees) == 0 {
+		return "no_employees"
+	}
+	return ""
 }

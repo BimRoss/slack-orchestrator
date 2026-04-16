@@ -24,6 +24,11 @@ type Config struct {
 	WorkerURLTemplate   string
 	WorkerHMACSecret    string
 	DispatchHTTPTimeout time.Duration
+
+	// DebugToken enables GET /debug/decisions (Bearer). Empty = endpoint disabled.
+	DebugToken string
+	// DecisionLogMax is the max in-memory decision entries (ring via slice trim).
+	DecisionLogMax int
 }
 
 const (
@@ -61,12 +66,17 @@ func FromEnv() Config {
 		WorkerURLTemplate:   strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_URL_TEMPLATE")),
 		WorkerHMACSecret:    strings.TrimSpace(os.Getenv("ORCHESTRATOR_WORKER_HMAC_SECRET")),
 		DispatchHTTPTimeout: time.Duration(dispatchTimeoutSec) * time.Second,
+
+		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
+		DecisionLogMax: getenvInt("ORCHESTRATOR_DECISION_LOG_MAX", defaultDecisionLogMax),
 	}
 	if cfg.HTTPAddr == "" {
 		cfg.HTTPAddr = defaultHTTPAddr
 	}
 	return cfg
 }
+
+const defaultDecisionLogMax = 500
 
 func splitCSV(s string) []string {
 	s = strings.TrimSpace(s)

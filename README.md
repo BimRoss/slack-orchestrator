@@ -24,6 +24,9 @@ go run ./cmd/slack-orchestrator
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
 - `GET /metrics` — Prometheus (Socket Mode state, acks; delegate metrics reserved for HTTP dispatch)
+- `GET /debug/decisions?limit=100` — JSON decision log (last N in-memory entries) when **`ORCHESTRATOR_DEBUG_TOKEN`** is set; requires `Authorization: Bearer <token>`. Empty token disables the endpoint (503). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
+
+The **makeacompany.ai** operator page **`/orchestrator`** proxies to this URL from the cluster (see **`ORCHESTRATOR_DEBUG_BASE_URL`** on the frontend + the same bearer token in **`makeacompany-ai-runtime-secrets`** as **`ORCHESTRATOR_DEBUG_TOKEN`**).
 
 Structured JSON logs are **on by default** (`decision` per message). Set `LOG_JSON=false` to disable.
 
