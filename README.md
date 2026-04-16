@@ -49,11 +49,31 @@ Authoritative JSON lives in **`slack-factory`**:
 - **Orchestrator** — [`manifests/orchestrator/app-manifest.json`](../slack-factory/manifests/orchestrator/app-manifest.json) (Socket Mode + message events).
 - **Agents** — `manifests/<employee>/` — **no** `message.channels` / `message.im` subscriptions; minimal **write** scopes (`chat:write`, reactions, etc.). Re-OAuth after changes.
 
+## Admin cluster (GitOps + secrets)
+
+Fleet manifests live in **[`rancher-admin`](https://github.com/BimRoss/rancher-admin)** under `admin/apps/slack-orchestrator/` (Deployment references Secret `slack-orchestrator-runtime` and `imagePullSecrets: dockerhub-pull`).
+
+Push **cluster-only** secrets from this repo (keeps `.env` → cluster mapping next to the code):
+
+```bash
+# From repo root; uses .env by default
+./scripts/update-rancher-secrets.sh
+# optional: pick up new Secret without waiting for rollout
+ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
+```
+
+| Script | Purpose |
+|--------|---------|
+| [`scripts/update-rancher-secrets.sh`](scripts/update-rancher-secrets.sh) | Runs pull-secret sync + runtime Secret (canonical entrypoint). |
+| [`scripts/sync-dockerhub-pull-secret.sh`](scripts/sync-dockerhub-pull-secret.sh) | Copies `dockerhub-pull` into namespace `slack-orchestrator` (same pattern as other `geeemoney/*` workloads). |
+| [`scripts/update-runtime-secret.sh`](scripts/update-runtime-secret.sh) | Creates/replaces `slack-orchestrator-runtime` from `.env` (keys listed in the script header). |
+
 ## Prod rollout
 
-1. Deploy orchestrator with secrets (`SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, plus env above).  
-2. Disable Socket Mode / message events on legacy employee Slack apps so only the orchestrator receives the firehose.  
-3. Optional: dedicated dev workspace later.
+1. Merge Fleet manifests; ensure GitRepo watches `admin`.  
+2. Run `./scripts/update-rancher-secrets.sh` after filling `.env`.  
+3. Disable Socket Mode / message events on legacy employee Slack apps so only the orchestrator receives the firehose.  
+4. Optional: dedicated dev workspace later.
 
 ## Phase 2
 
