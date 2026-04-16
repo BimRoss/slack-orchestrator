@@ -100,6 +100,8 @@ ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
 | [`scripts/sync-dockerhub-pull-secret.sh`](scripts/sync-dockerhub-pull-secret.sh) | Copies `dockerhub-pull` into namespace `slack-orchestrator` (same pattern as other `geeemoney/*` workloads). |
 | [`scripts/update-runtime-secret.sh`](scripts/update-runtime-secret.sh) | Creates/replaces `slack-orchestrator-runtime` from `.env` (keys listed in the script header). |
 
+**employee-factory channel-knowledge CronJob** reads history with the same orchestrator bot token. After updating `slack-orchestrator-runtime`, run **[`employee-factory/scripts/sync-channel-knowledge-orchestrator-secret.sh`](https://github.com/BimRoss/employee-factory/blob/main/scripts/sync-channel-knowledge-orchestrator-secret.sh)** so `employee-factory-orchestrator-runtime` stays in sync (see **employee-factory** [`docs/channel-knowledge.md`](https://github.com/BimRoss/employee-factory/blob/main/docs/channel-knowledge.md)).
+
 ## Prod rollout
 
 1. Merge Fleet manifests; ensure GitRepo watches `admin`.  
