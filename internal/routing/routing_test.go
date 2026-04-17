@@ -11,6 +11,8 @@ func TestClassifyBroadcastTrigger(t *testing.T) {
 	}{
 		{"<!everyone> hi", BroadcastEveryone},
 		{"hey @everyone there", BroadcastEveryone},
+		{"<!here> ping", BroadcastEveryone},
+		{"team @here FYI", BroadcastEveryone},
 		{"<!channel> x", BroadcastChannel},
 		{"note @channel please", BroadcastChannel},
 		{"Hey everyone", BroadcastNone},
@@ -31,19 +33,21 @@ func TestDecideEveryone(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
-	in := Input{ChannelID: "C1", MessageTS: "1.0", Text: "<!everyone> ship it"}
-	d := Decide(cfg, in)
-	if d.Trigger != TriggerEveryone {
-		t.Fatalf("trigger=%s", d.Trigger)
-	}
-	if len(d.Employees) != 5 {
-		t.Fatalf("employees=%v", d.Employees)
-	}
-	if d.Kind != KindConversation {
-		t.Fatalf("kind=%s", d.Kind)
-	}
-	if d.DispatchMode != DispatchModeFanout {
-		t.Fatalf("dispatch_mode=%s want fanout", d.DispatchMode)
+	for _, text := range []string{"<!everyone> ship it", "<!here> ship it", "hey @here team"} {
+		in := Input{ChannelID: "C1", MessageTS: "1.0", Text: text}
+		d := Decide(cfg, in)
+		if d.Trigger != TriggerEveryone {
+			t.Fatalf("text=%q trigger=%s", text, d.Trigger)
+		}
+		if len(d.Employees) != 5 {
+			t.Fatalf("text=%q employees=%v", text, d.Employees)
+		}
+		if d.Kind != KindConversation {
+			t.Fatalf("text=%q kind=%s", text, d.Kind)
+		}
+		if d.DispatchMode != DispatchModeFanout {
+			t.Fatalf("text=%q dispatch_mode=%s want fanout", text, d.DispatchMode)
+		}
 	}
 }
 

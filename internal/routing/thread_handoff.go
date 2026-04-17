@@ -12,7 +12,7 @@ type ThreadMessage struct {
 // in messages, scanning chronologically (appearance order within each message).
 // Messages must be restricted to those strictly before the current inbound message.
 //
-// If the thread root (Timestamp == threadTS) is a workspace broadcast (<!everyone>, <!channel>, etc.),
+// If the thread root (Timestamp == threadTS) is a workspace broadcast (<!everyone>, <!here>, <!channel>, etc.),
 // mentions in that root message are ignored so plain follow-ups keep the hashed random-picker
 // behavior until a later message @mentions a squad bot.
 func LastSquadHandoffKey(messages []ThreadMessage, threadTS string, cfg DecideConfig) string {
