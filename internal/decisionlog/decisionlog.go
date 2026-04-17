@@ -142,7 +142,7 @@ func HTTPHandler(store *Store, token string, allowAnon bool) http.HandlerFunc {
 		entries := store.Snapshot(limit)
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"schema_version": 1,
+			"schema_version": 2,
 			"entries":        entries,
 		})
 	}

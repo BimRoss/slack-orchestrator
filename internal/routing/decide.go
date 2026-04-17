@@ -25,12 +25,26 @@ const (
 	TriggerPlain    Trigger = "plain"
 )
 
+// DispatchMode describes how many NATS targets were chosen (observability + worker hints).
+type DispatchMode string
+
+const (
+	// DispatchModeSingle: one primary actor; NATS publishes to Employees (length 1 for normal turns).
+	DispatchModeSingle DispatchMode = "single"
+	// DispatchModeFanout: multiple workers (e.g. @everyone / @channel multi-agent).
+	DispatchModeFanout DispatchMode = "fanout"
+)
+
 // Decision is the orchestrator output for one normalized message.
 type Decision struct {
 	Trigger   Trigger  `json:"trigger"`
 	Employees []string `json:"employees"`
 	Kind      Kind     `json:"kind"`
 	ToolID    string   `json:"tool_id,omitempty"`
+	// DispatchMode is single vs fanout (everyone/channel caps).
+	DispatchMode DispatchMode `json:"dispatch_mode"`
+	// PrimaryEmployee is the canonical actor for single-target turns (first responder); empty for pure fanout.
+	PrimaryEmployee string `json:"primary_employee,omitempty"`
 }
 
 // Slack user mentions in message text (bot user ids are typically U…; include A for app-style ids when present).
@@ -51,61 +65,73 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	bc := ClassifyBroadcastTrigger(text)
 	switch bc {
 	case BroadcastEveryone:
-		return Decision{
+		emps := limitParticipants(cfg.Order, cfg.EveryoneLimit)
+		return withFanoutMeta(Decision{
 			Trigger:   TriggerEveryone,
-			Employees: limitParticipants(cfg.Order, cfg.EveryoneLimit),
+			Employees: emps,
 			Kind:      KindConversation,
-		}
+		})
 	case BroadcastChannel:
-		return Decision{
+		emps := limitParticipants(cfg.Order, cfg.ChannelLimit)
+		return withFanoutMeta(Decision{
 			Trigger:   TriggerChannel,
-			Employees: limitParticipants(cfg.Order, cfg.ChannelLimit),
+			Employees: emps,
 			Kind:      KindConversation,
-		}
+		})
 	}
 
 	mentioned := mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 	if len(mentioned) > 0 {
 		toolID, k := ClassifyToolOrConversation(text)
 		if k == KindTool && toolID != "" {
-			return Decision{
+			return withSingleMeta(Decision{
 				Trigger:   TriggerMention,
 				Employees: []string{mentioned[0]},
 				Kind:      KindTool,
 				ToolID:    toolID,
-			}
+			})
 		}
-		return Decision{
+		return withSingleMeta(Decision{
 			Trigger:   TriggerMention,
 			Employees: []string{mentioned[0]},
 			Kind:      KindConversation,
-		}
+		})
 	}
 
 	// Plain message → one pseudo-random agent (deterministic from thread + message + secret).
+	// Channel-root and thread replies use the same pick — matches employee-factory
+	// selectBroadcastThreadFollowupResponder / pickPlainResponder hash (prefix "plain-followup").
 	picked := pickPlainResponder(in.ThreadTS, in.MessageTS, cfg.Order, cfg.ShuffleSecret)
 	toolID, k := ClassifyToolOrConversation(text)
 	if k == KindTool && toolID != "" {
-		return Decision{
+		return withSingleMeta(Decision{
 			Trigger:   TriggerPlain,
 			Employees: []string{picked},
 			Kind:      KindTool,
 			ToolID:    toolID,
-		}
+		})
 	}
-	// Channel-root plain messages: deliver to one pseudo-random squad member (picked).
-	// Thread plain replies: fan out to the full roster. Workers cannot see Redis thread owner;
-	// employee-factory resolves owner / broadcast-thread responder locally — a single NATS
-	// target would often be the wrong pod and nobody would reply.
-	emps := []string{picked}
-	if strings.TrimSpace(in.ThreadTS) != "" && len(cfg.Order) > 0 {
-		emps = append([]string(nil), cfg.Order...)
-	}
-	return Decision{
+	return withSingleMeta(Decision{
 		Trigger:   TriggerPlain,
-		Employees: emps,
+		Employees: []string{picked},
 		Kind:      KindConversation,
+	})
+}
+
+func withSingleMeta(d Decision) Decision {
+	d.DispatchMode = DispatchModeSingle
+	if len(d.Employees) > 0 {
+		d.PrimaryEmployee = strings.ToLower(strings.TrimSpace(d.Employees[0]))
 	}
+	return d
+}
+
+func withFanoutMeta(d Decision) Decision {
+	d.DispatchMode = DispatchModeFanout
+	if len(d.Employees) > 0 {
+		d.PrimaryEmployee = strings.ToLower(strings.TrimSpace(d.Employees[0]))
+	}
+	return d
 }
 
 // DecideConfig is routing configuration subset.

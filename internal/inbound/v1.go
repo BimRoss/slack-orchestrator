@@ -3,7 +3,8 @@ package inbound
 
 import "github.com/bimross/slack-orchestrator/internal/routing"
 
-const SchemaVersion = "1"
+// SchemaVersion 2 adds dispatch_mode and primary_employee on routing.Decision (single-target plain thread).
+const SchemaVersion = "2"
 
 // EventV1 is published to JetStream per target employee (subject slack.work.<employee>.events).
 type EventV1 struct {

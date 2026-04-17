@@ -29,7 +29,7 @@ func TestDecideEveryone(t *testing.T) {
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		EveryoneLimit: 5,
 		ChannelLimit:  3,
-		ShuffleSecret:   "test",
+		ShuffleSecret: "test",
 	}
 	in := Input{ChannelID: "C1", MessageTS: "1.0", Text: "<!everyone> ship it"}
 	d := Decide(cfg, in)
@@ -42,6 +42,9 @@ func TestDecideEveryone(t *testing.T) {
 	if d.Kind != KindConversation {
 		t.Fatalf("kind=%s", d.Kind)
 	}
+	if d.DispatchMode != DispatchModeFanout {
+		t.Fatalf("dispatch_mode=%s want fanout", d.DispatchMode)
+	}
 }
 
 func TestDecideChannelLimitsToThree(t *testing.T) {
@@ -49,21 +52,24 @@ func TestDecideChannelLimitsToThree(t *testing.T) {
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		EveryoneLimit: 5,
 		ChannelLimit:  3,
-		ShuffleSecret:   "test",
+		ShuffleSecret: "test",
 	}
 	d := Decide(cfg, Input{Text: "<!channel> hi"})
 	if d.Trigger != TriggerChannel || len(d.Employees) != 3 {
 		t.Fatalf("got %+v", d)
 	}
+	if d.DispatchMode != DispatchModeFanout {
+		t.Fatalf("dispatch_mode=%s", d.DispatchMode)
+	}
 }
 
 func TestDecideMentionTool(t *testing.T) {
 	cfg := DecideConfig{
-		Order:        []string{"garth", "alex"},
-		BotUserToKey: map[string]string{"UGARTH": "garth"},
+		Order:         []string{"garth", "alex"},
+		BotUserToKey:  map[string]string{"UGARTH": "garth"},
 		EveryoneLimit: 5,
 		ChannelLimit:  3,
-		ShuffleSecret:   "x",
+		ShuffleSecret: "x",
 	}
 	d := Decide(cfg, Input{Text: "<@UGARTH> search twitter for bitcoin"})
 	if d.Trigger != TriggerMention || d.Employees[0] != "garth" {
@@ -76,11 +82,11 @@ func TestDecideMentionTool(t *testing.T) {
 
 func TestDecideMentionConversationFallback(t *testing.T) {
 	cfg := DecideConfig{
-		Order:        []string{"tim"},
-		BotUserToKey: map[string]string{"UTIM": "tim"},
+		Order:         []string{"tim"},
+		BotUserToKey:  map[string]string{"UTIM": "tim"},
 		EveryoneLimit: 5,
 		ChannelLimit:  3,
-		ShuffleSecret:   "x",
+		ShuffleSecret: "x",
 	}
 	d := Decide(cfg, Input{Text: "<@UTIM> thanks for the help"})
 	if d.Kind != KindConversation || d.ToolID != "" {
@@ -101,6 +107,30 @@ func TestDecidePlainDeterministic(t *testing.T) {
 	d2 := Decide(cfg, in)
 	if d1.Employees[0] != d2.Employees[0] || d1.Trigger != TriggerPlain {
 		t.Fatalf("d1=%+v d2=%+v", d1, d2)
+	}
+	if len(d1.Employees) != 1 || d1.DispatchMode != DispatchModeSingle {
+		t.Fatalf("plain must be single-target: %+v", d1)
+	}
+	if d1.PrimaryEmployee != d1.Employees[0] {
+		t.Fatalf("primary=%q emp=%q", d1.PrimaryEmployee, d1.Employees[0])
+	}
+}
+
+func TestDecidePlainThreadSingleTargetNotFanout(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  nil,
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{ChannelID: "C", ThreadTS: "177.1", MessageTS: "177.2", Text: "follow up in thread"}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 1 {
+		t.Fatalf("thread plain must fan out to 0 extra pods; got %d employees: %v", len(d.Employees), d.Employees)
+	}
+	if d.DispatchMode != DispatchModeSingle {
+		t.Fatalf("dispatch_mode=%s", d.DispatchMode)
 	}
 }
 

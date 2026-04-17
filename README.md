@@ -1,6 +1,6 @@
 # slack-orchestrator
 
-Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Emits **routing decisions** (structured logs) — delegate to thin agent workers in a later phase.
+Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Computes **routing decisions** and, when dispatch is enabled, publishes **JetStream** events for **employee-factory** workers (`schema_version: 2`).
 
 ## Routing (Phase 1)
 
@@ -10,8 +10,9 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 | `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
 | Squad `@mention` | First mentioned employee; `tool` vs `conversation` from keyword classifier |
 | Plain **channel-root** message (no `thread_ts`) | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
-| Plain **thread** reply (`thread_ts` set) — `conversation` only | **Full** roster in `MULTIAGENT_ORDER` (workers pick owner / broadcast responder) |
-| Plain thread — `tool` | **One** employee (same pseudo-random pick as channel-root) |
+| Plain **thread** reply (`thread_ts` set) | **One** employee (same `pickPlainResponder` hash as channel-root) — `tool` vs `conversation`; **not** a full-roster fan-out |
+
+Inbound NATS payload uses **`schema_version: 2`** (`internal/inbound/v1.go`). Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`** for observability. `GET /debug/decisions` returns **`schema_version: 2`** with the same decision shape.
 
 Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” user errors at this layer).
 
@@ -26,7 +27,13 @@ go run ./cmd/slack-orchestrator
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
 - `GET /metrics` — Prometheus (Socket Mode state, acks; JetStream delegate metrics when dispatch is enabled)
-- `GET /debug/decisions?limit=100` — JSON decision log (last N in-memory entries). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
+- `GET /debug/decisions?limit=100` — JSON decision log (last N **in-memory** entries on **this process only**). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
+
+### Kubernetes: run **one replica** (until shared decision storage)
+
+The decision log is **not** shared across pods. If you scale the Deployment to 2+, the Service round-robins `/debug/decisions` and **`/orchestrator` on makeacompany.ai will look like random events are missing** (each pod has its own buffer). **Keep `replicas: 1`** in GitOps unless you add Redis/SQL persistence for decisions or a single dedicated debug endpoint.
+
+Slack **Socket Mode** for this app is also operated as **one active connection** in practice; do not scale out for “HA” without an explicit design (shared store, leader election, or Slack’s recommended topology).
   - **`ORCHESTRATOR_DEBUG_ALLOW_ANON=true`**: no `Authorization` header (convenience; use behind firewall or turn off later).
   - Otherwise **`ORCHESTRATOR_DEBUG_TOKEN`** must be set and requests must send `Authorization: Bearer <token>`. If the token is unset and anon is off, the endpoint returns **503**.
 
