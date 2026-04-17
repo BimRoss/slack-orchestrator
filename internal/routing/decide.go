@@ -93,20 +93,28 @@ func Decide(cfg DecideConfig, in Input) Decision {
 			ToolID:    toolID,
 		}
 	}
+	// Channel-root plain messages: deliver to one pseudo-random squad member (picked).
+	// Thread plain replies: fan out to the full roster. Workers cannot see Redis thread owner;
+	// employee-factory resolves owner / broadcast-thread responder locally — a single NATS
+	// target would often be the wrong pod and nobody would reply.
+	emps := []string{picked}
+	if strings.TrimSpace(in.ThreadTS) != "" && len(cfg.Order) > 0 {
+		emps = append([]string(nil), cfg.Order...)
+	}
 	return Decision{
 		Trigger:   TriggerPlain,
-		Employees: []string{picked},
+		Employees: emps,
 		Kind:      KindConversation,
 	}
 }
 
 // DecideConfig is routing configuration subset.
 type DecideConfig struct {
-	Order          []string
-	BotUserToKey   map[string]string
-	EveryoneLimit  int
-	ChannelLimit   int
-	ShuffleSecret  string
+	Order         []string
+	BotUserToKey  map[string]string
+	EveryoneLimit int
+	ChannelLimit  int
+	ShuffleSecret string
 }
 
 func limitParticipants(order []string, limit int) []string {

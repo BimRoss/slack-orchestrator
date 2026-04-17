@@ -9,7 +9,9 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 | `<!everyone>` / `@everyone` | First **N** in the **resolved roster** (default **5**) — `conversation` |
 | `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
 | Squad `@mention` | First mentioned employee; `tool` vs `conversation` from keyword classifier |
-| Plain channel message | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
+| Plain **channel-root** message (no `thread_ts`) | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
+| Plain **thread** reply (`thread_ts` set) — `conversation` only | **Full** roster in `MULTIAGENT_ORDER` (workers pick owner / broadcast responder) |
+| Plain thread — `tool` | **One** employee (same pseudo-random pick as channel-root) |
 
 Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” user errors at this layer).
 
