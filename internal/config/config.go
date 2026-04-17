@@ -48,9 +48,16 @@ func FromEnv() Config {
 	explicitOrder := splitCSV(os.Getenv("MULTIAGENT_ORDER"))
 	order := ResolveMultiagentOrder(explicitOrder, botMap, shuffle)
 	cfg := Config{
-		HTTPAddr:        strings.TrimSpace(os.Getenv("HTTP_ADDR")),
-		BotToken:        strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")),
-		AppToken:        strings.TrimSpace(os.Getenv("SLACK_APP_TOKEN")),
+		HTTPAddr: strings.TrimSpace(os.Getenv("HTTP_ADDR")),
+		// Shared .env.dev with workers: allow orchestrator-only tokens so SLACK_BOT_TOKEN is not overloaded.
+		BotToken: strings.TrimSpace(firstNonEmpty(
+			os.Getenv("SLACK_BOT_TOKEN"),
+			os.Getenv("ORCHESTRATOR_SLACK_BOT_TOKEN"),
+		)),
+		AppToken: strings.TrimSpace(firstNonEmpty(
+			os.Getenv("SLACK_APP_TOKEN"),
+			os.Getenv("ORCHESTRATOR_SLACK_APP_TOKEN"),
+		)),
 		SocketModeDebug: parseBoolEnv("SOCKET_MODE_DEBUG", false),
 		SocketPingSec:   getenvInt("SOCKET_MODE_PING_INTERVAL_SEC", 0),
 		ShuffleSecret:   shuffle,
@@ -168,4 +175,13 @@ func getenvInt(key string, def int) int {
 		return def
 	}
 	return n
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, s := range vals {
+		if strings.TrimSpace(s) != "" {
+			return strings.TrimSpace(s)
+		}
+	}
+	return ""
 }

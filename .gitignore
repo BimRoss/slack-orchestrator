@@ -3,3 +3,6 @@
 /slack-orchestrator
 /dist/
 *.exe
+
+.env.dev
+.env.prod

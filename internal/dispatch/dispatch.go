@@ -84,6 +84,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			UserID:    in.UserID,
 			Text:      in.Text,
 		},
+		Capabilities: inbound.DefaultCapabilityContractJSON(),
 	}
 
 	for _, emp := range d.Employees {

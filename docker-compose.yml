@@ -1,0 +1,31 @@
+# Local dev: copy .env.example → .env.dev, fill Slack tokens + MULTIAGENT_BOT_USER_IDS.
+#
+# Profile `local`: run the orchestrator in Docker while NATS + workers live elsewhere (e.g. employee-factory
+# `docker compose --profile local` publishing 4222 on the host). The container uses host.docker.internal
+# to reach that NATS; on Linux, host-gateway is set below.
+#
+#   docker compose --profile local up --build
+#   docker compose --profile local logs -f
+#
+# Override NATS target (e.g. same Docker network as NATS): ORCHESTRATOR_NATS_URL=nats://nats:4222
+#
+# Optional: SLACK_ORCHESTRATOR_ENV_FILE=.env.prod  ORCHESTRATOR_PORT=9090
+#
+# Env file is not expected to set ORCHESTRATOR_NATS_URL when using this compose; overrides below point at the host.
+
+services:
+  slack-orchestrator:
+    profiles: ["local"]
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${ORCHESTRATOR_PORT:-8080}:8080"
+    env_file:
+      - ${SLACK_ORCHESTRATOR_ENV_FILE:-.env.dev}
+    environment:
+      HTTP_ADDR: ":8080"
+      ORCHESTRATOR_NATS_URL: ${ORCHESTRATOR_NATS_URL:-nats://host.docker.internal:4222}
+      ORCHESTRATOR_DISPATCH_ENABLED: ${ORCHESTRATOR_DISPATCH_ENABLED:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # NATS must be reachable at ORCHESTRATOR_NATS_URL before this starts (e.g. employee-factory stack up).

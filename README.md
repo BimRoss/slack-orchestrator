@@ -1,6 +1,6 @@
 # slack-orchestrator
 
-Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Computes **routing decisions** and, when dispatch is enabled, publishes **JetStream** events for **employee-factory** workers (`schema_version: 2`).
+Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Computes **routing decisions** and, when dispatch is enabled, publishes **JetStream** events for **employee-factory** workers (`schema_version: 3` includes the **capability contract** JSON on every message).
 
 ## Routing (Phase 1)
 
@@ -12,17 +12,38 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 | Plain **channel-root** message (no `thread_ts`) | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
 | Plain **thread** reply (`thread_ts` set) | **One** employee (same `pickPlainResponder` hash as channel-root) — `tool` vs `conversation`; **not** a full-roster fan-out |
 
-Inbound NATS payload uses **`schema_version: 2`** (`internal/inbound/v1.go`). Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`** for observability. `GET /debug/decisions` returns **`schema_version: 2`** with the same decision shape.
+Inbound NATS payload uses **`schema_version: 3`** (`internal/inbound/v1.go`): each publish includes **`capabilities`** — the full runtime catalog JSON, **hardcoded in this repo** (`internal/inbound/capability_contract.go`) as the source of truth for now (same shape as the makeacompany runtime API). Workers do not fetch policy over HTTP for orchestrator-originated turns. Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`**. `GET /debug/decisions` returns its own JSON shape for the in-memory log UI.
 
 Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” user errors at this layer).
 
 ## Run locally
 
+### Docker (profile `local`)
+
+Orchestrator runs on Compose profile **`local`**. Compose sets **`ORCHESTRATOR_NATS_URL=nats://host.docker.internal:4222`** and **`ORCHESTRATOR_DISPATCH_ENABLED=true`** so a **NATS broker on the host** (for example from **employee-factory** `docker compose --profile local`, which publishes **4222**) is reachable from the container.
+
+1. **`cp .env.example .env.dev`** and fill **`SLACK_BOT_TOKEN`** (or **`ORCHESTRATOR_SLACK_BOT_TOKEN`**), **`SLACK_APP_TOKEN`** (or **`ORCHESTRATOR_SLACK_APP_TOKEN`**), **`MULTIAGENT_BOT_USER_IDS`**, …  
+2. Start **NATS** (and workers) first, then run **`docker compose --profile local up --build`** or **`make docker-up`**.  
+3. **`docker compose --profile local logs -f slack-orchestrator`** or **`make docker-logs`**.
+
+Compose reads **`./.env.dev`** by default. Override file or port:  
+**`SLACK_ORCHESTRATOR_ENV_FILE=.env.prod ORCHESTRATOR_PORT=9090 docker compose --profile local up --build`**.
+
+Override NATS URL if needed: **`ORCHESTRATOR_NATS_URL=nats://… docker compose --profile local up --build`**.
+
+**`HTTP_ADDR=:8080`** is set in Compose; port mapping uses **`ORCHESTRATOR_PORT`** on the host (default **8080**).
+
+### Go run (no Docker)
+
+Use **`.env.dev`** / **`.env.prod`** and symlink **`./.env`** → active file:
+
 ```bash
-cp .env.example .env
-# set SLACK_BOT_TOKEN (xoxb-), SLACK_APP_TOKEN (xapp-)
+cp .env.example .env.dev
+./scripts/use-env.sh dev    # links .env -> .env.dev
 go run ./cmd/slack-orchestrator
 ```
+
+Shortcuts: **`make env-dev`** / **`make env-prod`**, **`make run-dev`** / **`make run-prod`**. The binary loads **`.env`** via `godotenv` (same pattern as **employee-factory**); existing shell env vars win if set.
 
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  

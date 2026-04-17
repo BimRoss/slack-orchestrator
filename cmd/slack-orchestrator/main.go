@@ -16,6 +16,7 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/logging"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
+	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
@@ -23,6 +24,7 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
 	cfg := config.FromEnv()
 	logging.Init()
 
