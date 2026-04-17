@@ -1,0 +1,10 @@
+# Local dev only: Air watches .go files and rebuilds + restarts (docker compose --profile local).
+FROM golang:1.23-alpine
+WORKDIR /src
+
+RUN apk add --no-cache git ca-certificates
+
+RUN go install github.com/air-verse/air@v1.61.7
+ENV PATH="/go/bin:${PATH}"
+
+CMD ["air", "-c", ".air.toml"]

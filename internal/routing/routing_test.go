@@ -63,6 +63,40 @@ func TestDecideChannelLimitsToThree(t *testing.T) {
 	}
 }
 
+func TestDecideBroadcastBeatsExplicitMention(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "test",
+	}
+	d := Decide(cfg, Input{Text: "<!everyone> <@UROSS> weigh in"})
+	if d.Trigger != TriggerEveryone {
+		t.Fatalf("broadcast must win over explicit mention, got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 5 {
+		t.Fatalf("everyone must fan out to all configured employees, got %+v", d)
+	}
+}
+
+func TestDecideChannelBeatsExplicitMention(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "test",
+	}
+	d := Decide(cfg, Input{Text: "<!channel> <@UROSS> thoughts?"})
+	if d.Trigger != TriggerChannel {
+		t.Fatalf("channel broadcast must win over explicit mention, got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
+		t.Fatalf("channel must fan out to 3, got %+v", d)
+	}
+}
+
 func TestDecideMentionTool(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"garth", "alex"},
@@ -78,6 +112,29 @@ func TestDecideMentionTool(t *testing.T) {
 	if d.Kind != KindTool || d.ToolID != "read-twitter" {
 		t.Fatalf("kind/tool=%s %q", d.Kind, d.ToolID)
 	}
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 {
+		t.Fatalf("single mention tool must stay single-target: %+v", d)
+	}
+}
+
+func TestDecideMentionToolFanoutForMultipleMentions(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	d := Decide(cfg, Input{Text: "<@UJOANNE> <@UROSS> search twitter for AI creators"})
+	if d.Trigger != TriggerMention || d.Kind != KindTool || d.ToolID != "read-twitter" {
+		t.Fatalf("got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeFanout {
+		t.Fatalf("multi mention tool must fan out: %+v", d)
+	}
+	if len(d.Employees) != 2 || d.Employees[0] != "ross" || d.Employees[1] != "joanne" {
+		t.Fatalf("mentions should be ordered by roster: %+v", d)
+	}
 }
 
 func TestDecideMentionConversationFallback(t *testing.T) {
@@ -91,6 +148,93 @@ func TestDecideMentionConversationFallback(t *testing.T) {
 	d := Decide(cfg, Input{Text: "<@UTIM> thanks for the help"})
 	if d.Kind != KindConversation || d.ToolID != "" {
 		t.Fatalf("got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 || d.Employees[0] != "tim" {
+		t.Fatalf("single mention must stay single-target: %+v", d)
+	}
+}
+
+func TestDecideMentionConversationFanoutForMultipleMentions(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	d := Decide(cfg, Input{Text: "hey <@UJOANNE> and <@UROSS> can you both check?"})
+	if d.Trigger != TriggerMention || d.Kind != KindConversation {
+		t.Fatalf("got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeFanout {
+		t.Fatalf("multi mention must fan out: %+v", d)
+	}
+	if len(d.Employees) != 2 || d.Employees[0] != "ross" || d.Employees[1] != "joanne" {
+		t.Fatalf("mentions should be ordered by roster: %+v", d)
+	}
+}
+
+func TestDecideMentionInThreadOverridesRootMentionStickiness(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	in := Input{
+		ThreadTS:       "177.1",
+		MessageTS:      "177.2",
+		Text:           "<@UJOANNE> can you take this one?",
+		ThreadRootText: "<@UROSS> started here",
+	}
+	d := Decide(cfg, in)
+	if d.Trigger != TriggerMention || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("thread mention should override root stickiness: %+v", d)
+	}
+}
+
+func TestDecideBroadcastRootThreadFollowupUsesRandomPicker(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSSBOT": "ross"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ThreadTS:       "177.1",
+		MessageTS:      "177.2",
+		Text:           "plain follow-up",
+		ThreadRootText: "<!everyone> <@UROSSBOT> kickoff",
+	}
+	d := Decide(cfg, in)
+	want := pickPlainResponder(in.ThreadTS, in.MessageTS, cfg.Order, cfg.ShuffleSecret)
+	if d.Trigger != TriggerPlain || d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 {
+		t.Fatalf("broadcast follow-up must be single random: %+v", d)
+	}
+	if d.Employees[0] != want {
+		t.Fatalf("broadcast follow-up should use random picker, got=%q want=%q", d.Employees[0], want)
+	}
+}
+
+func TestDecideBroadcastRootThreadMentionStillBroadcasts(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSSBOT": "ross"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ThreadTS:       "177.1",
+		MessageTS:      "177.2",
+		Text:           "<!channel> <@UROSSBOT> new ask",
+		ThreadRootText: "<@UROSSBOT> earlier topic",
+	}
+	d := Decide(cfg, in)
+	if d.Trigger != TriggerChannel || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
+		t.Fatalf("broadcast in thread must still win precedence, got %+v", d)
 	}
 }
 
@@ -131,6 +275,30 @@ func TestDecidePlainThreadSingleTargetNotFanout(t *testing.T) {
 	}
 	if d.DispatchMode != DispatchModeSingle {
 		t.Fatalf("dispatch_mode=%s", d.DispatchMode)
+	}
+}
+
+func TestDecidePlainThreadFollowsRootMention(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSSBOT": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:      "C",
+		ThreadTS:       "1776448093.830689",
+		MessageTS:      "1776448142.137509",
+		Text:           "Amazing, good to hear",
+		ThreadRootText: "<@UROSSBOT> hows it going dude?",
+	}
+	d := Decide(cfg, in)
+	if d.Trigger != TriggerPlain {
+		t.Fatalf("trigger=%s want plain", d.Trigger)
+	}
+	if len(d.Employees) != 1 || d.Employees[0] != "ross" {
+		t.Fatalf("want ross from thread root mention; got %+v", d)
 	}
 }
 

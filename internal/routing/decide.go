@@ -57,6 +57,9 @@ type Input struct {
 	MessageTS string
 	UserID    string
 	Text      string
+	// ThreadRootText is the parent message text when ThreadTS is set (from conversations.replies).
+	// Used so plain thread follow-ups route to the squad bot @mentioned on the thread root.
+	ThreadRootText string
 }
 
 // Decide returns routing for a channel message. Priority: broadcast → explicit squad mention → plain.
@@ -84,18 +87,52 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	if len(mentioned) > 0 {
 		toolID, k := ClassifyToolOrConversation(text)
 		if k == KindTool && toolID != "" {
-			return withSingleMeta(Decision{
+			d := Decision{
 				Trigger:   TriggerMention,
-				Employees: []string{mentioned[0]},
+				Employees: mentioned,
 				Kind:      KindTool,
 				ToolID:    toolID,
-			})
+			}
+			if len(mentioned) > 1 {
+				return withFanoutMeta(d)
+			}
+			return withSingleMeta(d)
 		}
-		return withSingleMeta(Decision{
+		d := Decision{
 			Trigger:   TriggerMention,
-			Employees: []string{mentioned[0]},
+			Employees: mentioned,
 			Kind:      KindConversation,
-		})
+		}
+		if len(mentioned) > 1 {
+			return withFanoutMeta(d)
+		}
+		return withSingleMeta(d)
+	}
+
+	// Plain thread reply: if the thread root @mentioned a squad bot, keep the conversation with
+	// that employee (omit repeated @mentions). Skip when the root is a broadcast — those
+	// follow-ups stay on the hashed plain-followup picker (matches broadcast multiagent behavior).
+	if strings.TrimSpace(in.ThreadTS) != "" && strings.TrimSpace(in.ThreadRootText) != "" {
+		rootText := strings.TrimSpace(in.ThreadRootText)
+		if ClassifyBroadcastTrigger(rootText) == BroadcastNone {
+			rootMentioned := mentionedEmployeeKeys(rootText, cfg.BotUserToKey, cfg.Order)
+			if len(rootMentioned) > 0 {
+				toolID, k := ClassifyToolOrConversation(text)
+				if k == KindTool && toolID != "" {
+					return withSingleMeta(Decision{
+						Trigger:   TriggerPlain,
+						Employees: []string{rootMentioned[0]},
+						Kind:      KindTool,
+						ToolID:    toolID,
+					})
+				}
+				return withSingleMeta(Decision{
+					Trigger:   TriggerPlain,
+					Employees: []string{rootMentioned[0]},
+					Kind:      KindConversation,
+				})
+			}
+		}
 	}
 
 	// Plain message → one pseudo-random agent (deterministic from thread + message + secret).
@@ -155,6 +192,12 @@ func limitParticipants(order []string, limit int) []string {
 	out := make([]string, limit)
 	copy(out, order[:limit])
 	return out
+}
+
+// SquadMentionsFromText returns employee keys for @mentions of configured squad bots in text
+// (same ordering rules as routing for multi-mention roots).
+func SquadMentionsFromText(text string, cfg DecideConfig) []string {
+	return mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 }
 
 func mentionedEmployeeKeys(text string, botUserToKey map[string]string, order []string) []string {

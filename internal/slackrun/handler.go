@@ -76,12 +76,35 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 		logMessageDrop(outer, "message", "empty_text_after_trim", ev.Channel, effThread, ev.TimeStamp)
 		return
 	}
+	rc := routingDecideConfig(cfg)
 	in := routing.Input{
 		ChannelID: ev.Channel,
-		ThreadTS:    effThread,
-		MessageTS:   ev.TimeStamp,
-		UserID:      effUser,
-		Text:        effText,
+		ThreadTS:  effThread,
+		MessageTS: ev.TimeStamp,
+		UserID:    effUser,
+		Text:      effText,
+	}
+	if strings.TrimSpace(effThread) != "" && threadRootTextFetcher != nil && len(routing.SquadMentionsFromText(effText, rc)) == 0 {
+		rootCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		rootText, err := threadRootTextFetcher(rootCtx, ev.Channel, effThread)
+		cancel()
+		if err != nil {
+			slog.Warn("orchestrator_thread_root_fetch_failed",
+				"slack_event_id", slackEventID(outer),
+				"channel_id", ev.Channel,
+				"thread_ts", effThread,
+				"error", err,
+			)
+		} else {
+			in.ThreadRootText = rootText
+			if strings.TrimSpace(rootText) == "" {
+				slog.Warn("orchestrator_thread_root_text_empty",
+					"slack_event_id", slackEventID(outer),
+					"channel_id", ev.Channel,
+					"thread_ts", effThread,
+				)
+			}
+		}
 	}
 	emitDecision(ctx, cfg, outer, in, "message")
 }
@@ -108,14 +131,18 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 	emitDecision(ctx, cfg, outer, in, "app_mention")
 }
 
-func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, innerType string) {
-	rc := routing.DecideConfig{
+func routingDecideConfig(cfg config.Config) routing.DecideConfig {
+	return routing.DecideConfig{
 		Order:         cfg.MultiagentOrder,
 		BotUserToKey:  cfg.BotUserToKey,
 		EveryoneLimit: cfg.EveryoneLimit,
 		ChannelLimit:  cfg.ChannelLimit,
 		ShuffleSecret: cfg.ShuffleSecret,
 	}
+}
+
+func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, innerType string) {
+	rc := routingDecideConfig(cfg)
 	d := routing.Decide(rc, in)
 	results := dispatch.Decision(ctx, cfg, outer, in, d, innerType)
 	note := dispatchNote(cfg, d)

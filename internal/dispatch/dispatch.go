@@ -22,9 +22,19 @@ import (
 var (
 	jsMu      sync.Mutex
 	jsConn    *nats.Conn
-	jsCtx     nats.JetStreamContext
+	jsCtx     jetStreamClient
 	jsURLUsed string
+
+	// Test hooks (overridden in unit tests).
+	jetStreamContextFn = jetStreamContext
+	ensureStreamFn     = ensureStream
 )
+
+type jetStreamClient interface {
+	Publish(subject string, data []byte, opts ...nats.PubOpt) (*nats.PubAck, error)
+	StreamInfo(stream string, opts ...nats.JSOpt) (*nats.StreamInfo, error)
+	AddStream(cfg *nats.StreamConfig, opts ...nats.JSOpt) (*nats.StreamInfo, error)
+}
 
 // Decision publishes one JSON message per target employee to JetStream (subject slack.work.<employee>.events).
 func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, d routing.Decision, innerType string) []decisionlog.DispatchResult {
@@ -43,7 +53,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		return nil
 	}
 
-	js, err := jetStreamContext(cfg)
+	js, err := jetStreamContextFn(cfg)
 	if err != nil {
 		slog.Error("orchestrator_dispatch_nats", "error", err)
 		for range d.Employees {
@@ -57,7 +67,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	if stream == "" {
 		stream = "SLACK_WORK"
 	}
-	if err := ensureStream(js, stream); err != nil {
+	if err := ensureStreamFn(js, stream); err != nil {
 		slog.Error("orchestrator_dispatch_stream", "error", err)
 		for range d.Employees {
 			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
@@ -87,11 +97,13 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		Capabilities: inbound.DefaultCapabilityContractJSON(),
 	}
 
+	seen := make(map[string]bool, len(d.Employees))
 	for _, emp := range d.Employees {
 		emp = strings.ToLower(strings.TrimSpace(emp))
-		if emp == "" {
+		if emp == "" || seen[emp] {
 			continue
 		}
+		seen[emp] = true
 		payload := payloadBase
 		payload.TargetEmployee = emp
 
@@ -122,7 +134,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	return results
 }
 
-func jetStreamContext(cfg config.Config) (nats.JetStreamContext, error) {
+func jetStreamContext(cfg config.Config) (jetStreamClient, error) {
 	want := strings.TrimSpace(cfg.NatsURL)
 	if want == "" {
 		return nil, fmt.Errorf("empty NATS url")
@@ -160,7 +172,7 @@ func jetStreamContext(cfg config.Config) (nats.JetStreamContext, error) {
 	return jsCtx, nil
 }
 
-func ensureStream(js nats.JetStreamContext, name string) error {
+func ensureStream(js jetStreamClient, name string) error {
 	if _, err := js.StreamInfo(name); err == nil {
 		return nil
 	} else if !errors.Is(err, nats.ErrStreamNotFound) {

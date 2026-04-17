@@ -1,22 +1,32 @@
 # Local dev: copy .env.example → .env.dev, fill Slack tokens + MULTIAGENT_BOT_USER_IDS.
 #
-# Profile `local`: run the orchestrator in Docker while NATS + workers live elsewhere (e.g. employee-factory
-# `docker compose --profile local` publishing 4222 on the host). The container uses host.docker.internal
-# to reach that NATS; on Linux, host-gateway is set below.
+# Hot reload: Air bind-mounts this repo at /src and rebuilds + restarts on .go saves (no manual restart).
 #
+# Profile `local`: same split as prod — orchestrator is its own container; NATS + employee-factory workers
+# run separately (e.g. employee-factory `docker compose --profile local`, which publishes NATS on the host).
+# This service publishes JetStream to that broker; workers consume — no HTTP coupling between the two apps.
+#
+#   # Terminal 1 — NATS + joanne + ross (repo: employee-factory)
 #   docker compose --profile local up --build
-#   docker compose --profile local logs -f
 #
-# Override NATS target (e.g. same Docker network as NATS): ORCHESTRATOR_NATS_URL=nats://nats:4222
+#   # Terminal 2 — this repo (orchestrator only)
+#   docker compose --profile local up --build
+#
+# Default NATS URL: nats://host.docker.internal:${NATS_PORT:-4222} (matches employee-factory NATS_PORT).
+# Linux: extra_hosts below maps host.docker.internal → host gateway.
+#
+# Same Docker network as NATS (e.g. compose merge): override
+#   ORCHESTRATOR_NATS_URL=nats://nats:4222 docker compose --profile local up --build
 #
 # Optional: SLACK_ORCHESTRATOR_ENV_FILE=.env.prod  ORCHESTRATOR_PORT=9090
-#
-# Env file is not expected to set ORCHESTRATOR_NATS_URL when using this compose; overrides below point at the host.
 
 services:
   slack-orchestrator:
     profiles: ["local"]
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: ["air", "-c", ".air.toml"]
     restart: unless-stopped
     ports:
       - "${ORCHESTRATOR_PORT:-8080}:8080"
@@ -24,8 +34,19 @@ services:
       - ${SLACK_ORCHESTRATOR_ENV_FILE:-.env.dev}
     environment:
       HTTP_ADDR: ":8080"
-      ORCHESTRATOR_NATS_URL: ${ORCHESTRATOR_NATS_URL:-nats://host.docker.internal:4222}
+      # env_file may contain k8s-style URLs; this default targets host-published NATS (split local stack).
+      ORCHESTRATOR_NATS_URL: ${ORCHESTRATOR_NATS_URL:-nats://host.docker.internal:${NATS_PORT:-4222}}
       ORCHESTRATOR_DISPATCH_ENABLED: ${ORCHESTRATOR_DISPATCH_ENABLED:-true}
+    volumes:
+      - type: bind
+        source: .
+        target: /src
+      - slack_orchestrator_gomod:/go/pkg/mod
+      - slack_orchestrator_gocache:/root/.cache/go-build
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # NATS must be reachable at ORCHESTRATOR_NATS_URL before this starts (e.g. employee-factory stack up).
+    # Start employee-factory (or any stack that exposes NATS on the host) before this service.
+
+volumes:
+  slack_orchestrator_gomod:
+  slack_orchestrator_gocache:

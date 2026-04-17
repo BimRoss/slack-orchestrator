@@ -1,0 +1,17 @@
+# Air: rebuild + restart ./cmd/slack-orchestrator on Go changes (docker compose --profile local).
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  bin = "./tmp/main"
+  cmd = "go build -o ./tmp/main ./cmd/slack-orchestrator"
+  delay = 200
+  exclude_dir = ["tmp", "vendor", ".git"]
+  exclude_regex = ["_test\\.go$"]
+  include_ext = ["go", "mod", "sum"]
+
+[log]
+  main_only = false
+
+[misc]
+  clean_on_exit = true

@@ -65,6 +65,34 @@ func main() {
 
 	// Socket Mode requires the app-level token on the API client (apps.connections.open).
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
+	slackrun.SetThreadRootTextFetcher(func(ctx context.Context, channelID, threadTS string) (string, error) {
+		// Fetch enough replies to find the parent by ts. Slack returns oldest first (parent first),
+		// but selecting by Timestamp == thread_ts avoids relying on ordering alone.
+		msgs, _, _, err := api.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
+			ChannelID: channelID,
+			Timestamp: threadTS,
+			Limit:     30,
+			Inclusive: true,
+		})
+		if err != nil {
+			return "", err
+		}
+		if len(msgs) == 0 {
+			return "", fmt.Errorf("conversations.replies: empty thread")
+		}
+		wantTS := strings.TrimSpace(threadTS)
+		var root *slack.Message
+		for i := range msgs {
+			if strings.TrimSpace(msgs[i].Timestamp) == wantTS {
+				root = &msgs[i]
+				break
+			}
+		}
+		if root == nil {
+			root = &msgs[0]
+		}
+		return strings.TrimSpace(root.Text), nil
+	})
 	var smOpts []socketmode.Option
 	if cfg.SocketModeDebug {
 		smOpts = append(smOpts, socketmode.OptionDebug(true))

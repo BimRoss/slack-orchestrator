@@ -20,16 +20,16 @@ Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” use
 
 ### Docker (profile `local`)
 
-Orchestrator runs on Compose profile **`local`**. Compose sets **`ORCHESTRATOR_NATS_URL=nats://host.docker.internal:4222`** and **`ORCHESTRATOR_DISPATCH_ENABLED=true`** so a **NATS broker on the host** (for example from **employee-factory** `docker compose --profile local`, which publishes **4222**) is reachable from the container.
+This matches **prod topology**: orchestrator is a separate process from **employee-factory**; both use the **same NATS** URL from their own config (no HTTP between them). Compose profile **`local`** sets **`ORCHESTRATOR_DISPATCH_ENABLED=true`** and defaults **`ORCHESTRATOR_NATS_URL`** to **`nats://host.docker.internal:${NATS_PORT:-4222}`** so the broker published on the host by **employee-factory** `docker compose --profile local` is reachable from the orchestrator container (`NATS_PORT` matches employee-factory’s env; default **4222**). Linux uses **`extra_hosts: host.docker.internal:host-gateway`** in `docker-compose.yml`.
 
 1. **`cp .env.example .env.dev`** and fill **`SLACK_BOT_TOKEN`** (or **`ORCHESTRATOR_SLACK_BOT_TOKEN`**), **`SLACK_APP_TOKEN`** (or **`ORCHESTRATOR_SLACK_APP_TOKEN`**), **`MULTIAGENT_BOT_USER_IDS`**, …  
-2. Start **NATS** (and workers) first, then run **`docker compose --profile local up --build`** or **`make docker-up`**.  
+2. Start **employee-factory** NATS + workers first, then run **`docker compose --profile local up --build`** or **`make docker-up`**.  
 3. **`docker compose --profile local logs -f slack-orchestrator`** or **`make docker-logs`**.
 
 Compose reads **`./.env.dev`** by default. Override file or port:  
 **`SLACK_ORCHESTRATOR_ENV_FILE=.env.prod ORCHESTRATOR_PORT=9090 docker compose --profile local up --build`**.
 
-Override NATS URL if needed: **`ORCHESTRATOR_NATS_URL=nats://… docker compose --profile local up --build`**.
+If NATS is on a non-default host port: **`NATS_PORT=4223 docker compose --profile local up --build`** (same variable name as employee-factory). Full URL override: **`ORCHESTRATOR_NATS_URL=nats://… docker compose --profile local up --build`** (e.g. **`nats://nats:4222`** if orchestrator shares a Docker network with a `nats` service).
 
 **`HTTP_ADDR=:8080`** is set in Compose; port mapping uses **`ORCHESTRATOR_PORT`** on the host (default **8080**).
 
