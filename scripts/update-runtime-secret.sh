@@ -11,6 +11,7 @@
 # Usage:
 #   ./scripts/update-runtime-secret.sh
 #   ENV_FILE=/path/.env NAMESPACE=slack-orchestrator ./scripts/update-runtime-secret.sh
+#   ENV_MODE=prod ./scripts/update-runtime-secret.sh
 #
 set -euo pipefail
 
@@ -23,15 +24,22 @@ if [[ -z "${KUBECONFIG:-}" ]]; then
   fi
 fi
 
-ENV_FILE="${ENV_FILE:-${ROOT}/.env}"
+KUBE_CONTEXT="${KUBE_CONTEXT:-admin}"
+if [[ -n "${ENV_FILE:-}" ]]; then
+  ENV_FILE="${ENV_FILE}"
+elif [[ -n "${ENV_MODE:-}" ]]; then
+  ENV_FILE="${ROOT}/.env.${ENV_MODE}"
+else
+  ENV_FILE="${ROOT}/.env"
+fi
 NAMESPACE="${NAMESPACE:-slack-orchestrator}"
 SECRET_NAME="${SECRET_NAME:-slack-orchestrator-runtime}"
 
 kubectl_cmd() {
   if [[ -n "${KUBECONFIG:-}" ]]; then
-    kubectl --kubeconfig="$KUBECONFIG" "$@"
+    kubectl --kubeconfig="$KUBECONFIG" --context "${KUBE_CONTEXT}" "$@"
   else
-    kubectl "$@"
+    kubectl --context "${KUBE_CONTEXT}" "$@"
   fi
 }
 
@@ -80,6 +88,6 @@ fi
 
 kubectl_cmd get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl_cmd create namespace "${NAMESPACE}"
 
-kubectl_cmd -n "${NAMESPACE}" delete secret "${SECRET_NAME}" --ignore-not-found=true >/dev/null
-kubectl_cmd -n "${NAMESPACE}" create secret generic "${SECRET_NAME}" "${secret_args[@]}"
-echo "Updated secret '${SECRET_NAME}' in namespace '${NAMESPACE}' (${#secret_args[@]} keys)."
+kubectl_cmd -n "${NAMESPACE}" create secret generic "${SECRET_NAME}" "${secret_args[@]}" \
+  --dry-run=client -o yaml | kubectl_cmd apply -f -
+echo "Applied secret '${SECRET_NAME}' in namespace '${NAMESPACE}' (${#secret_args[@]} keys)."

@@ -19,18 +19,15 @@ PULL_SECRET_FALLBACK_NAMESPACE="${PULL_SECRET_FALLBACK_NAMESPACE:-employee-facto
 if [[ -z "${KUBECONFIG:-}" ]]; then
   if [[ -f "${HOME}/.kube/config/admin.yaml" ]]; then
     export KUBECONFIG="${HOME}/.kube/config/admin.yaml"
-  elif [[ -f "${HOME}/.kube/config/grant-admin.yaml" ]]; then
-    export KUBECONFIG="${HOME}/.kube/config/grant-admin.yaml"
-  elif [[ -f "${HOME}/.kube/config/grant-admin.yml" ]]; then
-    export KUBECONFIG="${HOME}/.kube/config/grant-admin.yml"
   fi
 fi
+KUBE_CONTEXT="${KUBE_CONTEXT:-admin}"
 
 kubectl_cmd() {
   if [[ -n "${KUBECONFIG:-}" ]]; then
-    kubectl --kubeconfig="$KUBECONFIG" "$@"
+    kubectl --kubeconfig="$KUBECONFIG" --context "${KUBE_CONTEXT}" "$@"
   else
-    kubectl "$@"
+    kubectl --context "${KUBE_CONTEXT}" "$@"
   fi
 }
 

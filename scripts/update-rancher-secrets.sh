@@ -17,6 +17,16 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+export ENV_MODE="${ENV_MODE:-prod}"
+if [[ -z "${ENV_FILE:-}" ]]; then
+  export ENV_FILE="${ROOT}/.env.${ENV_MODE}"
+fi
+if [[ -z "${KUBECONFIG:-}" && -f "${HOME}/.kube/config/admin.yaml" ]]; then
+  export KUBECONFIG="${HOME}/.kube/config/admin.yaml"
+fi
+export KUBE_CONTEXT="${KUBE_CONTEXT:-admin}"
 
 "${SCRIPT_DIR}/sync-dockerhub-pull-secret.sh"
 "${SCRIPT_DIR}/update-runtime-secret.sh"
@@ -31,9 +41,9 @@ if [[ "${ROLLOUT_RESTART:-}" == "true" ]]; then
   fi
   kubectl_cmd() {
     if [[ -n "${KUBECONFIG:-}" ]]; then
-      kubectl --kubeconfig="$KUBECONFIG" "$@"
+      kubectl --kubeconfig="$KUBECONFIG" --context "${KUBE_CONTEXT}" "$@"
     else
-      kubectl "$@"
+      kubectl --context "${KUBE_CONTEXT}" "$@"
     fi
   }
   kubectl_cmd -n "${NAMESPACE}" rollout restart deploy/slack-orchestrator
