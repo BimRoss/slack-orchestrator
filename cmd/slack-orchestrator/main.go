@@ -77,9 +77,30 @@ func main() {
 			case socketmode.EventTypeConnected:
 				metrics.SocketModeState.Set(metrics.SocketStateConnected)
 				slog.Info("socket_mode", "state", "connected")
+			case socketmode.EventTypeHello:
+				if evt.Request != nil {
+					slog.Info("socket_mode_hello",
+						"num_connections", evt.Request.NumConnections,
+						"app_id", evt.Request.ConnectionInfo.AppID,
+						"debug_host", evt.Request.DebugInfo.Host,
+						"approximate_connection_time", evt.Request.DebugInfo.ApproximateConnectionTime,
+						"build_number", evt.Request.DebugInfo.BuildNumber,
+					)
+				} else {
+					slog.Info("socket_mode_hello")
+				}
 			case socketmode.EventTypeDisconnect:
 				metrics.SocketModeState.Set(metrics.SocketStateDisconnected)
-				slog.Info("socket_mode", "state", "disconnect")
+				if evt.Request != nil {
+					slog.Info("socket_mode_disconnect",
+						"reason", evt.Request.Reason,
+						"debug_host", evt.Request.DebugInfo.Host,
+						"approximate_connection_time", evt.Request.DebugInfo.ApproximateConnectionTime,
+						"build_number", evt.Request.DebugInfo.BuildNumber,
+					)
+				} else {
+					slog.Info("socket_mode", "state", "disconnect")
+				}
 			case socketmode.EventTypeEventsAPI:
 				eventsAPI, ok := evt.Data.(slackevents.EventsAPIEvent)
 				if !ok {
