@@ -11,6 +11,8 @@ type Config struct {
 	HTTPAddr        string
 	BotToken        string
 	AppToken        string
+	SocketModeDebug bool
+	SocketPingSec   int
 	ShuffleSecret   string
 	MultiagentOrder []string
 	BotUserToKey    map[string]string // Slack bot user ID -> employee key (alex, tim, …)
@@ -50,6 +52,8 @@ func FromEnv() Config {
 		HTTPAddr:        strings.TrimSpace(os.Getenv("HTTP_ADDR")),
 		BotToken:        strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN")),
 		AppToken:        strings.TrimSpace(os.Getenv("SLACK_APP_TOKEN")),
+		SocketModeDebug: parseBoolEnv("SOCKET_MODE_DEBUG", false),
+		SocketPingSec:   getenvInt("SOCKET_MODE_PING_INTERVAL_SEC", 0),
 		ShuffleSecret:   shuffle,
 		MultiagentOrder: order,
 		BotUserToKey:    botMap,

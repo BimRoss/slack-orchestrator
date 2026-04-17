@@ -63,7 +63,17 @@ func main() {
 
 	// Socket Mode requires the app-level token on the API client (apps.connections.open).
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
-	client := socketmode.New(api)
+	var smOpts []socketmode.Option
+	if cfg.SocketModeDebug {
+		smOpts = append(smOpts, socketmode.OptionDebug(true))
+		slog.Info("socket_mode_debug", "enabled", true)
+	}
+	if cfg.SocketPingSec > 0 {
+		d := time.Duration(cfg.SocketPingSec) * time.Second
+		smOpts = append(smOpts, socketmode.OptionPingInterval(d))
+		slog.Info("socket_mode_ping_interval_override", "seconds", cfg.SocketPingSec)
+	}
+	client := socketmode.New(api, smOpts...)
 
 	go func() {
 		for evt := range client.Events {
