@@ -43,6 +43,12 @@ Logging is **always JSON** (`log/slog` with a JSON handler) to **stdout** via **
 
 Use **`log/slog`** everywhere (`slog.Info`, `slog.Warn`, …); do not configure ad hoc loggers or alternate formats outside this package.
 
+### Thread replies vs scopes
+
+Slack does **not** use a separate “thread” scope. Thread replies are normal `message` events with `thread_ts` set; the same bot subscriptions apply (`message.channels` for public channels, **`message.groups`** for private channels, plus `channels:history` / `groups:history`). See [message.channels](https://api.slack.com/events/message.channels) and [message](https://api.slack.com/events/message).
+
+If you see **channel-root** traffic in logs but **never** `orchestrator_message_ingress` for a reply in a thread (no line with non-empty `thread_ts` for your text), Slack is **not delivering** that event to the app—usually **the orchestrator bot is not in a private channel**, or the workspace app install is stale after manifest changes (**reinstall / re-auth**). Slack also emits a separate **`message_replied`** system notification; the orchestrator **drops** that (`subtype_message_replied_notification`) because the human reply should appear as its own `message` event.
+
 ### Post-deploy sanity checklist
 
 1. **Image** — Deployment image tag matches the Git / release you intended (Fleet or manual bump).  

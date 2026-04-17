@@ -44,34 +44,44 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 	if ev == nil {
 		return
 	}
-	logMessageIngress(outer, "message", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp, ev.User, ev.BotID, ev.SubType, ev.ChannelType, ev.Text)
-
-	if ev.User == "" || ev.BotID != "" {
-		reason := "missing_user"
-		if ev.BotID != "" {
-			reason = "bot_or_integration_message"
-		}
-		logMessageDrop(outer, "message", reason, ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
+	st := strings.TrimSpace(ev.SubType)
+	if st == messageRepliedSubtype {
+		// Slack sends this as a system notification about thread activity; the real reply is a separate message.* event.
+		logMessageIngress(outer, "message", ev.Channel, effectiveThreadTS(ev), ev.TimeStamp, effectiveMessageUser(ev), effectiveBotID(ev), ev.SubType, ev.ChannelType, effectiveMessageText(ev), topLevelTextEmpty(ev))
+		logMessageDrop(outer, "message", "subtype_message_replied_notification", ev.Channel, effectiveThreadTS(ev), ev.TimeStamp)
 		return
 	}
-	st := strings.TrimSpace(ev.SubType)
+
+	effUser := effectiveMessageUser(ev)
+	effBot := effectiveBotID(ev)
+	effText := effectiveMessageText(ev)
+	effThread := effectiveThreadTS(ev)
+	logMessageIngress(outer, "message", ev.Channel, effThread, ev.TimeStamp, effUser, effBot, ev.SubType, ev.ChannelType, effText, topLevelTextEmpty(ev))
+
+	if effUser == "" || effBot != "" {
+		reason := "missing_user"
+		if effBot != "" {
+			reason = "bot_or_integration_message"
+		}
+		logMessageDrop(outer, "message", reason, ev.Channel, effThread, ev.TimeStamp)
+		return
+	}
 	if st != "" && st != "thread_broadcast" {
 		if st == "message_changed" || st == "message_deleted" {
-			logMessageDrop(outer, "message", "subtype_"+st, ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
+			logMessageDrop(outer, "message", "subtype_"+st, ev.Channel, effThread, ev.TimeStamp)
 			return
 		}
 	}
-	text := strings.TrimSpace(ev.Text)
-	if text == "" {
-		logMessageDrop(outer, "message", "empty_text_after_trim", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
+	if effText == "" {
+		logMessageDrop(outer, "message", "empty_text_after_trim", ev.Channel, effThread, ev.TimeStamp)
 		return
 	}
 	in := routing.Input{
 		ChannelID: ev.Channel,
-		ThreadTS:  strings.TrimSpace(ev.ThreadTimeStamp),
-		MessageTS: ev.TimeStamp,
-		UserID:    ev.User,
-		Text:      text,
+		ThreadTS:    effThread,
+		MessageTS:   ev.TimeStamp,
+		UserID:      effUser,
+		Text:        effText,
 	}
 	emitDecision(ctx, cfg, outer, in, "message")
 }
@@ -80,7 +90,8 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 	if ev == nil {
 		return
 	}
-	logMessageIngress(outer, "app_mention", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp, ev.User, ev.BotID, "", "", ev.Text)
+	trim := strings.TrimSpace(ev.Text)
+	logMessageIngress(outer, "app_mention", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp, ev.User, ev.BotID, "", "", trim, trim == "")
 
 	text := strings.TrimSpace(ev.Text)
 	if text == "" {
@@ -159,8 +170,10 @@ func slackEventID(ev slackevents.EventsAPIEvent) string {
 }
 
 // logMessageIngress records every Slack message-shaped event before routing filters (includes bots and empty text).
-func logMessageIngress(outer slackevents.EventsAPIEvent, innerType, channelID, threadTS, messageTS, userID, botID, subtype, channelType, rawText string) {
-	trim := strings.TrimSpace(rawText)
+// previewText is the text used for routing (effective / trimmed). topLevelTextEmpty is true when the raw API
+// payload had no top-level text (e.g. text only on nested Message) — useful for diagnosing Slack payload shapes.
+func logMessageIngress(outer slackevents.EventsAPIEvent, innerType, channelID, threadTS, messageTS, userID, botID, subtype, channelType, previewText string, topLevelTextEmpty bool) {
+	trim := strings.TrimSpace(previewText)
 	slog.Info("orchestrator_message_ingress",
 		"slack_event_id", slackEventID(outer),
 		"inner_type", innerType,
@@ -171,6 +184,7 @@ func logMessageIngress(outer slackevents.EventsAPIEvent, innerType, channelID, t
 		"bot_id", strings.TrimSpace(botID),
 		"subtype", strings.TrimSpace(subtype),
 		"channel_type", strings.TrimSpace(channelType),
+		"top_level_text_empty", topLevelTextEmpty,
 		"text_len", utf8.RuneCountInString(trim),
 		"text_preview", truncatePreview(trim, textPreviewRunes),
 	)
