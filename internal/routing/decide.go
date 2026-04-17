@@ -3,6 +3,7 @@ package routing
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"math/rand"
 	"regexp"
 	"strings"
 )
@@ -69,6 +70,7 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	switch bc {
 	case BroadcastEveryone:
 		emps := limitParticipants(cfg.Order, cfg.EveryoneLimit)
+		emps = shuffleOrder(strings.TrimSpace(in.MessageTS), emps, cfg.ShuffleSecret)
 		return withFanoutMeta(Decision{
 			Trigger:   TriggerEveryone,
 			Employees: emps,
@@ -76,6 +78,7 @@ func Decide(cfg DecideConfig, in Input) Decision {
 		})
 	case BroadcastChannel:
 		emps := limitParticipants(cfg.Order, cfg.ChannelLimit)
+		emps = shuffleOrder(strings.TrimSpace(in.MessageTS), emps, cfg.ShuffleSecret)
 		return withFanoutMeta(Decision{
 			Trigger:   TriggerChannel,
 			Employees: emps,
@@ -132,10 +135,9 @@ func Decide(cfg DecideConfig, in Input) Decision {
 		}
 	}
 
-	// Plain message → one pseudo-random agent (deterministic from thread + message + secret).
-	// Channel-root and thread replies use the same pick — matches employee-factory
-	// selectBroadcastThreadFollowupResponder / pickPlainResponder hash (prefix "plain-followup").
-	picked := pickPlainResponder(in.ThreadTS, in.MessageTS, cfg.Order, cfg.ShuffleSecret)
+	// Plain message → one responder: first agent after the same shuffle as @here/@channel multi-agent
+	// (shuffleOrder(message_ts, roster, secret)[0]; keys vary per message like broadcast slot order).
+	picked := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
 	toolID, k := ClassifyToolOrConversation(text)
 	if k == KindTool && toolID != "" {
 		return withSingleMeta(Decision{
@@ -235,21 +237,43 @@ func mentionedEmployeeKeys(text string, botUserToKey map[string]string, order []
 	return keys
 }
 
-func pickPlainResponder(threadTS, messageTS string, order []string, secret string) string {
+// shuffleOrder returns a deterministic permutation of order for this trigger.
+// All processes compute the same sequence from anchorTS + order + secret (SHA-256 seed), matching
+// employee-factory shuffleBroadcastParticipants.
+func shuffleOrder(anchorTS string, order []string, secret string) []string {
 	if len(order) == 0 {
-		return ""
+		return nil
+	}
+	out := make([]string, len(order))
+	copy(out, order)
+	if len(out) <= 1 {
+		return out
 	}
 	var b strings.Builder
-	b.WriteString("plain-followup")
-	b.WriteByte(0)
-	b.WriteString(strings.TrimSpace(threadTS))
-	b.WriteByte(0)
-	b.WriteString(strings.TrimSpace(messageTS))
+	b.WriteString(strings.TrimSpace(anchorTS))
 	b.WriteByte(0)
 	b.WriteString(strings.Join(order, ","))
 	b.WriteByte(0)
 	b.WriteString(secret)
 	sum := sha256.Sum256([]byte(b.String()))
-	idx := int(binary.BigEndian.Uint64(sum[:8]) % uint64(len(order)))
-	return order[idx]
+	seed := int64(binary.BigEndian.Uint64(sum[:8]))
+	rng := rand.New(rand.NewSource(seed))
+	for i := len(out) - 1; i > 0; i-- {
+		j := rng.Intn(i + 1)
+		out[i], out[j] = out[j], out[i]
+	}
+	return out
+}
+
+// pickPlainResponder chooses who answers a plain message: first slot after shuffling the roster
+// by message_ts, matching broadcast multi-agent ordering (shuffleOrder anchor = root message ts there).
+func pickPlainResponder(messageTS string, order []string, secret string) string {
+	if len(order) == 0 {
+		return ""
+	}
+	shuffled := shuffleOrder(strings.TrimSpace(messageTS), order, secret)
+	if len(shuffled) == 0 {
+		return ""
+	}
+	return shuffled[0]
 }

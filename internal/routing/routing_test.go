@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -42,6 +43,13 @@ func TestDecideEveryone(t *testing.T) {
 		if len(d.Employees) != 5 {
 			t.Fatalf("text=%q employees=%v", text, d.Employees)
 		}
+		want := slices.Clone(cfg.Order)
+		slices.Sort(want)
+		got := slices.Clone(d.Employees)
+		slices.Sort(got)
+		if !slices.Equal(want, got) {
+			t.Fatalf("text=%q employees must be a permutation of roster, got %v", text, d.Employees)
+		}
 		if d.Kind != KindConversation {
 			t.Fatalf("text=%q kind=%s", text, d.Kind)
 		}
@@ -58,9 +66,16 @@ func TestDecideChannelLimitsToThree(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
-	d := Decide(cfg, Input{Text: "<!channel> hi"})
+	d := Decide(cfg, Input{MessageTS: "99.0", Text: "<!channel> hi"})
 	if d.Trigger != TriggerChannel || len(d.Employees) != 3 {
 		t.Fatalf("got %+v", d)
+	}
+	want := slices.Clone(cfg.Order[:3])
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("channel employees must be a permutation of first 3 in roster, got %v", d.Employees)
 	}
 	if d.DispatchMode != DispatchModeFanout {
 		t.Fatalf("dispatch_mode=%s", d.DispatchMode)
@@ -75,12 +90,19 @@ func TestDecideBroadcastBeatsExplicitMention(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
-	d := Decide(cfg, Input{Text: "<!everyone> <@UROSS> weigh in"})
+	d := Decide(cfg, Input{MessageTS: "1.0", Text: "<!everyone> <@UROSS> weigh in"})
 	if d.Trigger != TriggerEveryone {
 		t.Fatalf("broadcast must win over explicit mention, got %+v", d)
 	}
 	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 5 {
 		t.Fatalf("everyone must fan out to all configured employees, got %+v", d)
+	}
+	want := slices.Clone(cfg.Order)
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("everyone employees must be a permutation of roster, got %v", d.Employees)
 	}
 }
 
@@ -92,12 +114,19 @@ func TestDecideChannelBeatsExplicitMention(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
-	d := Decide(cfg, Input{Text: "<!channel> <@UROSS> thoughts?"})
+	d := Decide(cfg, Input{MessageTS: "2.0", Text: "<!channel> <@UROSS> thoughts?"})
 	if d.Trigger != TriggerChannel {
 		t.Fatalf("channel broadcast must win over explicit mention, got %+v", d)
 	}
 	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
 		t.Fatalf("channel must fan out to 3, got %+v", d)
+	}
+	want := slices.Clone(cfg.Order[:3])
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("channel employees must be a permutation of first 3 in roster, got %v", d.Employees)
 	}
 }
 
@@ -211,7 +240,7 @@ func TestDecideBroadcastRootThreadFollowupUsesRandomPicker(t *testing.T) {
 		Text:      "plain follow-up",
 	}
 	d := Decide(cfg, in)
-	want := pickPlainResponder(in.ThreadTS, in.MessageTS, cfg.Order, cfg.ShuffleSecret)
+	want := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
 	if d.Trigger != TriggerPlain || d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 {
 		t.Fatalf("broadcast follow-up must be single random: %+v", d)
 	}
@@ -236,6 +265,13 @@ func TestDecideBroadcastRootThreadMentionStillBroadcasts(t *testing.T) {
 	d := Decide(cfg, in)
 	if d.Trigger != TriggerChannel || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
 		t.Fatalf("broadcast in thread must still win precedence, got %+v", d)
+	}
+	want := slices.Clone(cfg.Order[:3])
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("channel employees must be a permutation of first 3 in roster, got %v", d.Employees)
 	}
 }
 
