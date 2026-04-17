@@ -39,7 +39,9 @@ Slack **Socket Mode** for this app is also operated as **one active connection**
 
 The **makeacompany.ai** page **`/orchestrator`** proxies via **`ORCHESTRATOR_DEBUG_BASE_URL`** on the frontend; set **`ORCHESTRATOR_DEBUG_ALLOW_ANON`** the same on both services, or use a shared **`ORCHESTRATOR_DEBUG_TOKEN`** in `makeacompany-ai-runtime-secrets` and orchestrator secrets.
 
-Structured JSON logs are **on by default** (`decision` per message). Set `LOG_JSON=false` to disable.
+Logging is **always JSON** (`log/slog` with a JSON handler) to **stdout** via **`internal/logging.Init()`** from `main`, so cluster UIs that only collect stdout still show logs.
+
+Use **`log/slog`** everywhere (`slog.Info`, `slog.Warn`, …); do not configure ad hoc loggers or alternate formats outside this package.
 
 ### Post-deploy sanity checklist
 

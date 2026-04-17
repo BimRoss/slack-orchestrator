@@ -18,7 +18,6 @@ type Config struct {
 	BotUserToKey    map[string]string // Slack bot user ID -> employee key (alex, tim, …)
 	EveryoneLimit   int
 	ChannelLimit    int
-	LogJSON         bool
 
 	// DispatchEnabled publishes routing decisions to NATS JetStream (per-employee subjects).
 	DispatchEnabled bool
@@ -59,7 +58,6 @@ func FromEnv() Config {
 		BotUserToKey:    botMap,
 		EveryoneLimit:   getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
 		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
-		LogJSON:         logJSONDefaultTrue(os.Getenv("LOG_JSON")),
 
 		DispatchEnabled: parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
 		NatsURL:         strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_URL")),
@@ -143,20 +141,6 @@ func parseBotUserMapPositional(s string) map[string]string {
 		i++
 	}
 	return out
-}
-
-// logJSONDefaultTrue: JSON structured logs on by default; set LOG_JSON=false, 0, no, or off to disable.
-func logJSONDefaultTrue(raw string) bool {
-	s := strings.TrimSpace(strings.ToLower(raw))
-	if s == "" {
-		return true
-	}
-	switch s {
-	case "0", "false", "no", "off":
-		return false
-	default:
-		return true
-	}
 }
 
 func parseBoolEnv(key string, def bool) bool {

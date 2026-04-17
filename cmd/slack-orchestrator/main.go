@@ -3,16 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
 	"github.com/bimross/slack-orchestrator/internal/decisionlog"
+	"github.com/bimross/slack-orchestrator/internal/logging"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -23,9 +24,7 @@ import (
 
 func main() {
 	cfg := config.FromEnv()
-	if cfg.LogJSON {
-		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo})))
-	}
+	logging.Init()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -47,7 +46,8 @@ func main() {
 	go func() {
 		slog.Info("http_listen", "addr", cfg.HTTPAddr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
+			slog.Error("http_listen", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -127,6 +127,11 @@ func main() {
 				}
 				client.Ack(*evt.Request)
 				metrics.EventsAPIAckedTotal.Inc()
+				slog.Info("orchestrator_socket_mode_event_callback",
+					"inner_type", strings.TrimSpace(eventsAPI.InnerEvent.Type),
+					"slack_event_id", eventsAPIEventID(eventsAPI),
+					"team_id", strings.TrimSpace(eventsAPI.TeamID),
+				)
 				slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
 			case socketmode.EventTypeErrorBadMessage:
 				metrics.SocketModeBadMessageTotal.Inc()
@@ -163,4 +168,11 @@ func main() {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	_ = srv.Shutdown(shutdownCtx)
+}
+
+func eventsAPIEventID(ev slackevents.EventsAPIEvent) string {
+	if cb, ok := ev.Data.(*slackevents.EventsAPICallbackEvent); ok && cb != nil {
+		return strings.TrimSpace(cb.EventID)
+	}
+	return ""
 }

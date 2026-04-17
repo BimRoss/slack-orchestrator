@@ -2,7 +2,6 @@ package slackrun
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"strings"
 	"time"
@@ -125,35 +124,6 @@ func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.Even
 		})
 	}
 
-	if cfg.LogJSON {
-		b, _ := json.Marshal(struct {
-			Event        string           `json:"event"`
-			SlackEventID string           `json:"slack_event_id,omitempty"`
-			InnerType    string           `json:"inner_type"`
-			ChannelID    string           `json:"channel_id"`
-			ThreadTS     string           `json:"thread_ts"`
-			MessageTS    string           `json:"message_ts"`
-			UserID       string           `json:"user_id"`
-			TextLen      int              `json:"text_len"`
-			TextPreview  string           `json:"text_preview"`
-			Decision     routing.Decision `json:"decision"`
-			DispatchNote string           `json:"dispatch_note,omitempty"`
-		}{
-			Event:        "orchestrator_routing_decision",
-			SlackEventID: slackEventID(outer),
-			InnerType:    innerType,
-			ChannelID:    in.ChannelID,
-			ThreadTS:     in.ThreadTS,
-			MessageTS:    in.MessageTS,
-			UserID:       in.UserID,
-			TextLen:      utf8.RuneCountInString(in.Text),
-			TextPreview:  truncatePreview(in.Text, textPreviewRunes),
-			Decision:     d,
-			DispatchNote: note,
-		})
-		slog.Info(string(b))
-		return
-	}
 	slog.Info("orchestrator_routing_decision",
 		"slack_event_id", slackEventID(outer),
 		"inner_type", innerType,
@@ -163,12 +133,7 @@ func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.Even
 		"user_id", in.UserID,
 		"text_len", utf8.RuneCountInString(in.Text),
 		"text_preview", truncatePreview(in.Text, textPreviewRunes),
-		"trigger", d.Trigger,
-		"employees", strings.Join(d.Employees, ","),
-		"kind", d.Kind,
-		"tool_id", d.ToolID,
-		"dispatch_mode", d.DispatchMode,
-		"primary_employee", d.PrimaryEmployee,
+		"decision", d,
 		"dispatch_note", note,
 	)
 }
