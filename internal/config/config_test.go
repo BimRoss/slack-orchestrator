@@ -20,4 +20,3 @@ func TestParseBotUserMap_explicit(t *testing.T) {
 		t.Fatalf("got %#v want %#v", got, want)
 	}
 }
-
