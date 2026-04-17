@@ -84,26 +84,19 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 		UserID:    effUser,
 		Text:      effText,
 	}
-	if strings.TrimSpace(effThread) != "" && threadRootTextFetcher != nil && len(routing.SquadMentionsFromText(effText, rc)) == 0 {
-		rootCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		rootText, err := threadRootTextFetcher(rootCtx, ev.Channel, effThread)
+	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(effText, rc)) == 0 {
+		routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		handoffKey, err := threadRoutingFetcher(routeCtx, ev.Channel, effThread, ev.TimeStamp)
 		cancel()
 		if err != nil {
-			slog.Warn("orchestrator_thread_root_fetch_failed",
+			slog.Warn("orchestrator_thread_routing_fetch_failed",
 				"slack_event_id", slackEventID(outer),
 				"channel_id", ev.Channel,
 				"thread_ts", effThread,
 				"error", err,
 			)
 		} else {
-			in.ThreadRootText = rootText
-			if strings.TrimSpace(rootText) == "" {
-				slog.Warn("orchestrator_thread_root_text_empty",
-					"slack_event_id", slackEventID(outer),
-					"channel_id", ev.Channel,
-					"thread_ts", effThread,
-				)
-			}
+			in.ThreadPlainHandoffKey = handoffKey
 		}
 	}
 	emitDecision(ctx, cfg, outer, in, "message")

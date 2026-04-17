@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -15,6 +16,7 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/decisionlog"
 	"github.com/bimross/slack-orchestrator/internal/logging"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
+	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -65,13 +67,11 @@ func main() {
 
 	// Socket Mode requires the app-level token on the API client (apps.connections.open).
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
-	slackrun.SetThreadRootTextFetcher(func(ctx context.Context, channelID, threadTS string) (string, error) {
-		// Fetch enough replies to find the parent by ts. Slack returns oldest first (parent first),
-		// but selecting by Timestamp == thread_ts avoids relying on ordering alone.
+	slackrun.SetThreadRoutingFetcher(func(ctx context.Context, channelID, threadTS, currentMessageTS string) (string, error) {
 		msgs, _, _, err := api.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 			ChannelID: channelID,
 			Timestamp: threadTS,
-			Limit:     30,
+			Limit:     200,
 			Inclusive: true,
 		})
 		if err != nil {
@@ -80,18 +80,27 @@ func main() {
 		if len(msgs) == 0 {
 			return "", fmt.Errorf("conversations.replies: empty thread")
 		}
-		wantTS := strings.TrimSpace(threadTS)
-		var root *slack.Message
+		var threadMsgs []routing.ThreadMessage
 		for i := range msgs {
-			if strings.TrimSpace(msgs[i].Timestamp) == wantTS {
-				root = &msgs[i]
-				break
+			ts := strings.TrimSpace(msgs[i].Timestamp)
+			if ts == "" {
+				continue
+			}
+			if slackTimestampLess(ts, currentMessageTS) {
+				threadMsgs = append(threadMsgs, routing.ThreadMessage{
+					Timestamp: ts,
+					Text:      msgs[i].Text,
+				})
 			}
 		}
-		if root == nil {
-			root = &msgs[0]
+		rc := routing.DecideConfig{
+			Order:         cfg.MultiagentOrder,
+			BotUserToKey:  cfg.BotUserToKey,
+			EveryoneLimit: cfg.EveryoneLimit,
+			ChannelLimit:  cfg.ChannelLimit,
+			ShuffleSecret: cfg.ShuffleSecret,
 		}
-		return strings.TrimSpace(root.Text), nil
+		return routing.LastSquadHandoffKey(threadMsgs, threadTS, rc), nil
 	})
 	var smOpts []socketmode.Option
 	if cfg.SocketModeDebug {
@@ -205,4 +214,14 @@ func eventsAPIEventID(ev slackevents.EventsAPIEvent) string {
 		return strings.TrimSpace(cb.EventID)
 	}
 	return ""
+}
+
+// slackTimestampLess compares Slack message timestamps (e.g. "1776450504.274629").
+func slackTimestampLess(a, b string) bool {
+	fa, err1 := strconv.ParseFloat(strings.TrimSpace(a), 64)
+	fb, err2 := strconv.ParseFloat(strings.TrimSpace(b), 64)
+	if err1 != nil || err2 != nil {
+		return strings.TrimSpace(a) < strings.TrimSpace(b)
+	}
+	return fa < fb
 }

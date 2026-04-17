@@ -57,9 +57,9 @@ type Input struct {
 	MessageTS string
 	UserID    string
 	Text      string
-	// ThreadRootText is the parent message text when ThreadTS is set (from conversations.replies).
-	// Used so plain thread follow-ups route to the squad bot @mentioned on the thread root.
-	ThreadRootText string
+	// ThreadPlainHandoffKey is the last squad-bot @mention before this message in thread history
+	// (from conversations.replies). Empty when unknown or no prior squad mentions.
+	ThreadPlainHandoffKey string
 }
 
 // Decide returns routing for a channel message. Priority: broadcast → explicit squad mention → plain.
@@ -109,29 +109,26 @@ func Decide(cfg DecideConfig, in Input) Decision {
 		return withSingleMeta(d)
 	}
 
-	// Plain thread reply: if the thread root @mentioned a squad bot, keep the conversation with
-	// that employee (omit repeated @mentions). Skip when the root is a broadcast — those
-	// follow-ups stay on the hashed plain-followup picker (matches broadcast multiagent behavior).
-	if strings.TrimSpace(in.ThreadTS) != "" && strings.TrimSpace(in.ThreadRootText) != "" {
-		rootText := strings.TrimSpace(in.ThreadRootText)
-		if ClassifyBroadcastTrigger(rootText) == BroadcastNone {
-			rootMentioned := mentionedEmployeeKeys(rootText, cfg.BotUserToKey, cfg.Order)
-			if len(rootMentioned) > 0 {
-				toolID, k := ClassifyToolOrConversation(text)
-				if k == KindTool && toolID != "" {
-					return withSingleMeta(Decision{
-						Trigger:   TriggerPlain,
-						Employees: []string{rootMentioned[0]},
-						Kind:      KindTool,
-						ToolID:    toolID,
-					})
-				}
+	// Plain thread reply: continue with the last squad bot @mentioned earlier in this thread
+	// (handoff). Thread history is scanned in slackrun (conversations.replies); broadcast roots
+	// do not pin a bot until a later explicit @mention (see LastSquadHandoffKey).
+	if strings.TrimSpace(in.ThreadTS) != "" {
+		key := strings.TrimSpace(in.ThreadPlainHandoffKey)
+		if key != "" {
+			toolID, k := ClassifyToolOrConversation(text)
+			if k == KindTool && toolID != "" {
 				return withSingleMeta(Decision{
 					Trigger:   TriggerPlain,
-					Employees: []string{rootMentioned[0]},
-					Kind:      KindConversation,
+					Employees: []string{key},
+					Kind:      KindTool,
+					ToolID:    toolID,
 				})
 			}
+			return withSingleMeta(Decision{
+				Trigger:   TriggerPlain,
+				Employees: []string{key},
+				Kind:      KindConversation,
+			})
 		}
 	}
 

@@ -10,7 +10,7 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 | `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
 | Squad `@mention` | First mentioned employee; `tool` vs `conversation` from keyword classifier |
 | Plain **channel-root** message (no `thread_ts`) | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
-| Plain **thread** reply (`thread_ts` set) | **One** employee (same `pickPlainResponder` hash as channel-root) — `tool` vs `conversation`; **not** a full-roster fan-out |
+| Plain **thread** reply (`thread_ts` set) | **Last** squad `@mention` earlier in that thread (from `conversations.replies`, appearance order); broadcast **roots** (`<!everyone>` / `<!channel>`) do not pin a bot until someone later `@mentions` one. If there is no prior squad mention, **one** employee via the same `pickPlainResponder` hash as channel-root — `tool` vs `conversation`; **not** a full-roster fan-out |
 
 Inbound NATS payload uses **`schema_version: 3`** (`internal/inbound/v1.go`): each publish includes **`capabilities`** — the full runtime catalog JSON, **hardcoded in this repo** (`internal/inbound/capability_contract.go`) as the source of truth for now (same shape as the makeacompany runtime API). Workers do not fetch policy over HTTP for orchestrator-originated turns. Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`**. `GET /debug/decisions` returns its own JSON shape for the in-memory log UI.
 

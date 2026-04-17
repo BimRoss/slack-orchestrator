@@ -183,10 +183,9 @@ func TestDecideMentionInThreadOverridesRootMentionStickiness(t *testing.T) {
 		ShuffleSecret: "x",
 	}
 	in := Input{
-		ThreadTS:       "177.1",
-		MessageTS:      "177.2",
-		Text:           "<@UJOANNE> can you take this one?",
-		ThreadRootText: "<@UROSS> started here",
+		ThreadTS:  "177.1",
+		MessageTS: "177.2",
+		Text:      "<@UJOANNE> can you take this one?",
 	}
 	d := Decide(cfg, in)
 	if d.Trigger != TriggerMention || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
@@ -203,10 +202,9 @@ func TestDecideBroadcastRootThreadFollowupUsesRandomPicker(t *testing.T) {
 		ShuffleSecret: "secret",
 	}
 	in := Input{
-		ThreadTS:       "177.1",
-		MessageTS:      "177.2",
-		Text:           "plain follow-up",
-		ThreadRootText: "<!everyone> <@UROSSBOT> kickoff",
+		ThreadTS:  "177.1",
+		MessageTS: "177.2",
+		Text:      "plain follow-up",
 	}
 	d := Decide(cfg, in)
 	want := pickPlainResponder(in.ThreadTS, in.MessageTS, cfg.Order, cfg.ShuffleSecret)
@@ -227,10 +225,9 @@ func TestDecideBroadcastRootThreadMentionStillBroadcasts(t *testing.T) {
 		ShuffleSecret: "secret",
 	}
 	in := Input{
-		ThreadTS:       "177.1",
-		MessageTS:      "177.2",
-		Text:           "<!channel> <@UROSSBOT> new ask",
-		ThreadRootText: "<@UROSSBOT> earlier topic",
+		ThreadTS:  "177.1",
+		MessageTS: "177.2",
+		Text:      "<!channel> <@UROSSBOT> new ask",
 	}
 	d := Decide(cfg, in)
 	if d.Trigger != TriggerChannel || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
@@ -287,11 +284,11 @@ func TestDecidePlainThreadFollowsRootMention(t *testing.T) {
 		ShuffleSecret: "secret",
 	}
 	in := Input{
-		ChannelID:      "C",
-		ThreadTS:       "1776448093.830689",
-		MessageTS:      "1776448142.137509",
-		Text:           "Amazing, good to hear",
-		ThreadRootText: "<@UROSSBOT> hows it going dude?",
+		ChannelID:             "C",
+		ThreadTS:              "1776448093.830689",
+		MessageTS:             "1776448142.137509",
+		Text:                  "Amazing, good to hear",
+		ThreadPlainHandoffKey: "ross",
 	}
 	d := Decide(cfg, in)
 	if d.Trigger != TriggerPlain {
@@ -306,5 +303,64 @@ func TestClassifyToolOrConversationAmbiguous(t *testing.T) {
 	tool, k := ClassifyToolOrConversation("we have email and twitter tooling")
 	if k != KindConversation || tool != "" {
 		t.Fatalf("tool=%q k=%s", tool, k)
+	}
+}
+
+func TestLastSquadHandoffKey_LastMentionWinsOverRoot(t *testing.T) {
+	cfg := DecideConfig{
+		BotUserToKey: map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+	}
+	msgs := []ThreadMessage{
+		{Timestamp: "1.0", Text: "<@UROSS> kickoff"},
+		{Timestamp: "2.0", Text: "<@UJOANNE> are you around?"},
+	}
+	if got := LastSquadHandoffKey(msgs, "1.0", cfg); got != "joanne" {
+		t.Fatalf("got %q want joanne", got)
+	}
+}
+
+func TestLastSquadHandoffKey_SkipsMentionsInBroadcastRoot(t *testing.T) {
+	cfg := DecideConfig{
+		BotUserToKey: map[string]string{"UROSSBOT": "ross"},
+	}
+	msgs := []ThreadMessage{
+		{Timestamp: "1.0", Text: "<!everyone> <@UROSSBOT> kickoff"},
+	}
+	if got := LastSquadHandoffKey(msgs, "1.0", cfg); got != "" {
+		t.Fatalf("broadcast root must not pin ross; got %q", got)
+	}
+}
+
+func TestLastSquadHandoffKey_BroadcastRootThenLaterMention(t *testing.T) {
+	cfg := DecideConfig{
+		BotUserToKey: map[string]string{"UROSSBOT": "ross", "UJOANNE": "joanne"},
+	}
+	msgs := []ThreadMessage{
+		{Timestamp: "1.0", Text: "<!everyone> <@UROSSBOT> kickoff"},
+		{Timestamp: "2.0", Text: "<@UJOANNE> ping"},
+	}
+	if got := LastSquadHandoffKey(msgs, "1.0", cfg); got != "joanne" {
+		t.Fatalf("got %q want joanne", got)
+	}
+}
+
+func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:             "C",
+		ThreadTS:              "177.1",
+		MessageTS:             "177.9",
+		Text:                  "plain after joanne was addressed",
+		ThreadPlainHandoffKey: "joanne",
+	}
+	d := Decide(cfg, in)
+	if d.Trigger != TriggerPlain || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("want joanne handoff; got %+v", d)
 	}
 }
