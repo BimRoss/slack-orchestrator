@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
@@ -82,11 +83,35 @@ func main() {
 			case socketmode.EventTypeEventsAPI:
 				eventsAPI, ok := evt.Data.(slackevents.EventsAPIEvent)
 				if !ok {
+					slog.Warn("socket_mode_events_api_unexpected_data_type", "got", fmt.Sprintf("%T", evt.Data))
+					if evt.Request != nil {
+						client.Ack(*evt.Request)
+						metrics.EventsAPIAckedTotal.Inc()
+					}
+					continue
+				}
+				if evt.Request == nil {
+					slog.Error("socket_mode_events_api_nil_request")
 					continue
 				}
 				client.Ack(*evt.Request)
 				metrics.EventsAPIAckedTotal.Inc()
 				slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
+			case socketmode.EventTypeErrorBadMessage:
+				metrics.SocketModeBadMessageTotal.Inc()
+				cause := "unknown"
+				if bm, ok := evt.Data.(*socketmode.ErrorBadMessage); ok && bm != nil && bm.Cause != nil {
+					cause = bm.Cause.Error()
+				}
+				slog.Warn("socket_mode_bad_message", "cause", cause)
+			case socketmode.EventTypeIncomingError:
+				if errEv, ok := evt.Data.(*slack.IncomingEventError); ok && errEv != nil && errEv.ErrorObj != nil {
+					slog.Warn("socket_mode_incoming_error", "error", errEv.ErrorObj.Error())
+				} else {
+					slog.Warn("socket_mode_incoming_error")
+				}
+			case socketmode.EventTypeInvalidAuth:
+				slog.Error("socket_mode_invalid_auth_check_app_token")
 			default:
 				// Ack other interactive events if needed
 				if evt.Request != nil {

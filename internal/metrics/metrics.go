@@ -29,6 +29,13 @@ var (
 		Help:      "Total Events API Socket Mode envelopes acknowledged",
 	})
 
+	// SocketModeBadMessageTotal counts WebSocket payloads that failed to parse (see logs for cause).
+	SocketModeBadMessageTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "socket_mode_bad_message_total",
+		Help:      "Total Socket Mode messages that failed parsing before events_api dispatch",
+	})
+
 	// DelegatePublishTotal counts JetStream publish attempts to worker runtimes. Labels: result=success|failure|skipped.
 	DelegatePublishTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "slack_orchestrator",
