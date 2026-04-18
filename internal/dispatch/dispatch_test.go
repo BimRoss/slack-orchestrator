@@ -220,3 +220,58 @@ func TestDecision_PipelineSetsRunIDAndTrigger(t *testing.T) {
 		t.Fatalf("trigger_source: got %q", evt.TriggerSource)
 	}
 }
+
+func TestDecision_PipelineInvalidStepIndexStillSetsPipelineAnchor(t *testing.T) {
+	fake := &fakeJetStream{}
+	origJet := jetStreamContextFn
+	origEnsure := ensureStreamFn
+	jetStreamContextFn = func(_ config.Config) (jetStreamClient, error) { return fake, nil }
+	ensureStreamFn = ensureStream
+	t.Cleanup(func() {
+		jetStreamContextFn = origJet
+		ensureStreamFn = origEnsure
+	})
+
+	cfg := config.Config{
+		DispatchEnabled: true,
+		NatsURL:         "nats://stubbed",
+		NatsStream:      "SLACK_WORK",
+	}
+	outer := slackevents.EventsAPIEvent{
+		Data: &slackevents.EventsAPICallbackEvent{EventID: "EvOOB"},
+	}
+	rootText := "<@UBOT> root message for anchor"
+	in := routing.Input{
+		ChannelID: "C1",
+		MessageTS: "99.0",
+		UserID:    "U1",
+		Text:      rootText,
+	}
+	d := routing.Decision{
+		Trigger:           routing.TriggerMention,
+		Employees:         []string{"garth"},
+		Kind:              routing.KindConversation,
+		ExecutionMode:     routing.ExecutionModePipeline,
+		PipelineStepIndex: 99, // out of range vs 2 steps
+		PipelineSteps: []routing.PipelineStep{
+			{TargetEmployee: "garth", StepText: "step0"},
+			{TargetEmployee: "tim", StepText: "step1"},
+		},
+	}
+
+	Decision(context.Background(), cfg, outer, in, d, "message")
+	if len(fake.published) != 1 {
+		t.Fatalf("expected 1 publish, got %d", len(fake.published))
+	}
+	var evt inbound.EventV1
+	if err := json.Unmarshal(fake.published[0].data, &evt); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if strings.TrimSpace(evt.Message.PipelineAnchorText) != rootText {
+		t.Fatalf("pipeline_anchor_text: got %q want %q", evt.Message.PipelineAnchorText, rootText)
+	}
+	// Step text not applied when index invalid; message.text stays full input.
+	if strings.TrimSpace(evt.Message.Text) != rootText {
+		t.Fatalf("message.text: got %q want %q", evt.Message.Text, rootText)
+	}
+}
