@@ -54,8 +54,8 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		Skills: []CapabilitySkillV1{
 			{
 				ID: "write-email", Label: "Write Email", Description: "Draft, send, and triage email communication.",
-				RuntimeTool: "joanne-write-email", RequiredParams: []string{"intent", "subject", "to"},
-				OptionalParams: []string{"button", "commenters", "editors", "link", "viewers"},
+				RuntimeTool: "joanne-write-email", RequiredParams: []string{"intent", "subject"},
+				OptionalParams: []string{"to", "button", "commenters", "editors", "link", "viewers"},
 			},
 			{
 				ID: "write-doc", Label: "Write Doc", Description: "Create, edit, and organize working docs.",

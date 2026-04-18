@@ -8,7 +8,8 @@ import (
 // ExecutionModePipeline is routing.Decision.ExecutionMode when ordered pipeline_steps apply.
 const ExecutionModePipeline = "pipeline"
 
-// PipelineStep is one ordered step in a multi-employee chain (one human message).
+// PipelineStep is one ordered step in a pipeline chain (one human message).
+// Steps may involve different employees or the same employee mentioned multiple times.
 type PipelineStep struct {
 	TargetEmployee string `json:"target_employee"`
 	StepText       string `json:"step_text"`
@@ -16,24 +17,24 @@ type PipelineStep struct {
 	ToolID         string `json:"tool_id,omitempty"`
 }
 
-// squadMentionOccurrences returns squad bot mentions in left-to-right text order with byte indices.
+// squadMentionOccurrences returns every squad bot mention in left-to-right order (byte indices).
+// The same employee may appear more than once so callers can build multi-step pipelines
+// (e.g. @joanne read company @joanne draft email).
 func squadMentionOccurrences(text string, botUserToKey map[string]string) []mentionOccurrence {
 	if len(botUserToKey) == 0 {
 		return nil
 	}
 	all := reSlackUserMention.FindAllStringSubmatchIndex(text, -1)
 	var out []mentionOccurrence
-	seen := make(map[string]bool)
 	for _, m := range all {
 		if len(m) < 4 {
 			continue
 		}
 		uid := text[m[2]:m[3]]
 		key, ok := botUserToKey[uid]
-		if !ok || seen[key] {
+		if !ok {
 			continue
 		}
-		seen[key] = true
 		out = append(out, mentionOccurrence{
 			key:       key,
 			end:       m[1],
@@ -75,7 +76,7 @@ func segmentTextsForSquadMentions(text string, occ []mentionOccurrence) []string
 }
 
 // TryPipelineDecision returns a pipeline decision when there are 2+ squad mentions in the message.
-// ok is false when fewer than 2 distinct squad mentions appear.
+// Mentions may repeat the same bot; ok is false when fewer than two squad mentions appear.
 func TryPipelineDecision(cfg DecideConfig, in Input) (Decision, bool) {
 	occ := squadMentionOccurrences(in.Text, cfg.BotUserToKey)
 	if len(occ) < 2 {

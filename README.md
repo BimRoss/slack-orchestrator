@@ -49,6 +49,7 @@ Shortcuts: **`make env-dev`** / **`make env-prod`**, **`make run-dev`** / **`mak
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
 - `GET /metrics` — Prometheus (Socket Mode state, acks; JetStream delegate metrics when dispatch is enabled)
+- `GET /debug/capability-catalog` — full capability contract JSON (**same bytes** as NATS `capabilities` on dispatch). Auth matches `/debug/decisions`. Offline export: `go run ./cmd/catalog-export` → stdout.
 - `GET /debug/decisions?limit=100` — JSON decision log (last N **in-memory** entries on **this process only**). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
 
 ### Kubernetes: run **one replica** (until shared decision storage)

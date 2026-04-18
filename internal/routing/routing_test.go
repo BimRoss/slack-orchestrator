@@ -150,6 +150,28 @@ func TestDecideMentionTool(t *testing.T) {
 	}
 }
 
+func TestDecideMentionPipelineSameBotTwice(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	d := Decide(cfg, Input{ChannelID: "C", MessageTS: "13.0", Text: "<@UJOANNE> read twitter <@UJOANNE> read trends"})
+	if d.Trigger != TriggerMention || d.ExecutionMode != ExecutionModePipeline {
+		t.Fatalf("got %+v", d)
+	}
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("pipeline first hop: %+v", d)
+	}
+	if len(d.PipelineSteps) != 2 ||
+		d.PipelineSteps[0].TargetEmployee != "joanne" ||
+		d.PipelineSteps[1].TargetEmployee != "joanne" {
+		t.Fatalf("pipeline_steps=%+v", d.PipelineSteps)
+	}
+}
+
 func TestDecideMentionToolPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},

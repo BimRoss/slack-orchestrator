@@ -2,6 +2,7 @@
 //
 // The default capability contract (see capability_contract.go) is defined and versioned here as the
 // source of truth for what JetStream publishes; workers apply the inlined JSON per message.
+// The same JSON is available at GET /debug/capability-catalog and via cmd/catalog-export.
 package inbound
 
 import (

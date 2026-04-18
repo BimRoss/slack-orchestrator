@@ -87,6 +87,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	var pipelineAnchor string
 	if strings.EqualFold(strings.TrimSpace(d.ExecutionMode), routing.ExecutionModePipeline) && len(d.PipelineSteps) > 0 {
 		schemaVer = inbound.SchemaVersionPipeline
+		pipelineAnchor = strings.TrimSpace(in.Text)
 		idx := d.PipelineStepIndex
 		if idx < 0 {
 			idx = 0
@@ -96,7 +97,6 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			if st != "" {
 				msgText = st
 			}
-			pipelineAnchor = strings.TrimSpace(in.Text)
 		}
 	}
 	var traceRun string

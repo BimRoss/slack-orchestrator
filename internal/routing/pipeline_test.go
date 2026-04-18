@@ -35,6 +35,38 @@ func TestTryPipelineDecisionTwoSteps(t *testing.T) {
 	}
 }
 
+func TestTryPipelineDecisionSameBotTwice(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
+		ShuffleSecret: "x",
+	}
+	in := Input{
+		ChannelID: "C1",
+		MessageTS: "12.0",
+		Text:      "<@UJOANNE> what happened recently <@UJOANNE> draft me an email to team@example.com subject hello",
+	}
+	d, ok := TryPipelineDecision(cfg, in)
+	if !ok {
+		t.Fatal("expected pipeline for two mentions of same bot")
+	}
+	if d.ExecutionMode != ExecutionModePipeline || len(d.PipelineSteps) != 2 {
+		t.Fatalf("got %+v", d)
+	}
+	if d.PipelineSteps[0].TargetEmployee != "joanne" || d.PipelineSteps[1].TargetEmployee != "joanne" {
+		t.Fatalf("steps=%+v", d.PipelineSteps)
+	}
+	if d.PipelineSteps[0].StepText != "what happened recently" {
+		t.Fatalf("step0 text=%q", d.PipelineSteps[0].StepText)
+	}
+	if d.PipelineSteps[1].StepText != "draft me an email to team@example.com subject hello" {
+		t.Fatalf("step1 text=%q", d.PipelineSteps[1].StepText)
+	}
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("dispatch %+v", d)
+	}
+}
+
 func TestDecidePipelineBeatsWholeMessageTool(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"joanne", "ross"},
