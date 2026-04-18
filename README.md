@@ -1,6 +1,6 @@
 # slack-orchestrator
 
-Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Computes **routing decisions** and, when dispatch is enabled, publishes **JetStream** events for **employee-factory** workers (`schema_version: 3` includes the **capability contract** JSON on every message).
+Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_mention`, and reactions (see [`slack-factory` manifests](../slack-factory/manifests/orchestrator/)). Computes **routing decisions** and, when dispatch is enabled, publishes **JetStream** events for **employee-factory** workers (`schema_version: 3` or **`4`** for pipelines; both include the **capability contract** JSON on every message).
 
 ## Routing (Phase 1)
 
@@ -8,11 +8,12 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 |--------|----------|
 | `<!everyone>` / `@everyone` | First **N** in the **resolved roster** (default **5**) — `conversation` |
 | `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
-| Squad `@mention` | First mentioned employee; `tool` vs `conversation` from keyword classifier |
+| Squad `@mention` (one bot) | That employee; `tool` vs `conversation` from keyword classifier |
+| Squad `@mention` (**two or more** distinct squad bots) | **`execution_mode: pipeline`**: ordered **`pipeline_steps`** (text split by mention positions in the message); **single** JetStream publish to the **first** step’s employee (`schema_version: 4`). Further steps are published by the worker after each step completes. |
 | Plain **channel-root** message (no `thread_ts`) | **One** deterministic pseudo-random employee — `tool` vs `conversation` |
 | Plain **thread** reply (`thread_ts` set) | **Last** squad `@mention` earlier in that thread (from `conversations.replies`, appearance order); broadcast **roots** (`<!everyone>` / `<!channel>`) do not pin a bot until someone later `@mentions` one. If there is no prior squad mention, **one** employee via the same `pickPlainResponder` hash as channel-root — `tool` vs `conversation`; **not** a full-roster fan-out |
 
-Inbound NATS payload uses **`schema_version: 3`** (`internal/inbound/v1.go`): each publish includes **`capabilities`** — the full runtime catalog JSON, **hardcoded in this repo** (`internal/inbound/capability_contract.go`) as the source of truth for now (same shape as the makeacompany runtime API). Workers do not fetch policy over HTTP for orchestrator-originated turns. Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`**. `GET /debug/decisions` returns its own JSON shape for the in-memory log UI.
+Inbound NATS payload uses **`schema_version: 3`** or **`4`** (`internal/inbound/v1.go`): each publish includes **`capabilities`** — the full runtime catalog JSON, **hardcoded in this repo** (`internal/inbound/capability_contract.go`) as the source of truth for now (same shape as the makeacompany runtime API). Workers do not fetch policy over HTTP for orchestrator-originated turns. Each `routing.Decision` includes **`dispatch_mode`** (`single` \| `fanout`) and **`primary_employee`**. Pipeline mode adds **`execution_mode`**, **`pipeline_steps`**, **`pipeline_step_index`**, and **`chain_id`**. `GET /debug/decisions` returns its own JSON shape for the in-memory log UI.
 
 Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” user errors at this layer).
 

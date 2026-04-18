@@ -3,6 +3,7 @@ package dispatch
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
@@ -161,5 +162,61 @@ func TestDecision_DedupesDuplicateEmployeesBeforePublish(t *testing.T) {
 	}
 	if !gotSubjects["slack.work.ross.events"] || !gotSubjects["slack.work.joanne.events"] {
 		t.Fatalf("unexpected deduped subjects: %+v", gotSubjects)
+	}
+}
+
+func TestDecision_PipelineSetsRunIDAndTrigger(t *testing.T) {
+	fake := &fakeJetStream{}
+	origJet := jetStreamContextFn
+	origEnsure := ensureStreamFn
+	jetStreamContextFn = func(_ config.Config) (jetStreamClient, error) { return fake, nil }
+	ensureStreamFn = ensureStream
+	t.Cleanup(func() {
+		jetStreamContextFn = origJet
+		ensureStreamFn = origEnsure
+	})
+
+	cfg := config.Config{
+		DispatchEnabled: true,
+		NatsURL:         "nats://stubbed",
+		NatsStream:      "SLACK_WORK",
+	}
+	outer := slackevents.EventsAPIEvent{
+		Data: &slackevents.EventsAPICallbackEvent{EventID: "EvPipe"},
+	}
+	in := routing.Input{
+		ChannelID: "C1",
+		MessageTS: "99.0",
+		UserID:    "U1",
+		Text:      "<@UGARTH> then <@UTIM> trends",
+	}
+	d := routing.Decision{
+		Trigger:           routing.TriggerMention,
+		Employees:         []string{"garth"},
+		Kind:              routing.KindConversation,
+		ExecutionMode:     routing.ExecutionModePipeline,
+		PipelineStepIndex: 0,
+		PipelineSteps: []routing.PipelineStep{
+			{TargetEmployee: "garth", StepText: "step garth"},
+			{TargetEmployee: "tim", StepText: "step tim"},
+		},
+	}
+
+	Decision(context.Background(), cfg, outer, in, d, "message")
+	if len(fake.published) != 1 {
+		t.Fatalf("expected 1 publish, got %d", len(fake.published))
+	}
+	var evt inbound.EventV1
+	if err := json.Unmarshal(fake.published[0].data, &evt); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if evt.RunID == "" || evt.TraceID == "" || evt.RunID != evt.TraceID {
+		t.Fatalf("expected matching run_id and trace_id, got run_id=%q trace_id=%q", evt.RunID, evt.TraceID)
+	}
+	if !strings.HasPrefix(evt.RunID, "run_") {
+		t.Fatalf("expected run_ prefix, got %q", evt.RunID)
+	}
+	if evt.TriggerSource != inbound.TriggerSourceSlack {
+		t.Fatalf("trigger_source: got %q", evt.TriggerSource)
 	}
 }

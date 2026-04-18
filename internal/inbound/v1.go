@@ -12,13 +12,28 @@ import (
 
 // SchemaVersion 3 adds capabilities (capability contract JSON on every dispatch).
 // Schema 2: dispatch_mode and primary_employee on routing.Decision (single-target plain thread).
+// SchemaVersionPipeline (4) adds pipeline_steps / execution_mode for ordered multi-employee chains.
 const SchemaVersion = "3"
+
+// SchemaVersionPipeline is used when routing.Decision uses execution_mode=pipeline.
+const SchemaVersionPipeline = "4"
+
+// TriggerSource values match employee-factory orchestratorevent (same JSON contract).
+const (
+	TriggerSourceSlack = "slack"
+	TriggerSourceCron  = "cron"
+	TriggerSourceAPI   = "api"
+)
 
 // EventV1 is published to JetStream per target employee (subject slack.work.<employee>.events).
 type EventV1 struct {
 	SchemaVersion string `json:"schema_version"`
 
 	TraceID string `json:"trace_id,omitempty"`
+	// RunID identifies one pipeline run (or future cron job). Populated for execution_mode=pipeline.
+	RunID string `json:"run_id,omitempty"`
+	// TriggerSource is who scheduled the step (slack dispatch vs future cron/API publishers).
+	TriggerSource string `json:"trigger_source,omitempty"`
 
 	SlackEventID   string `json:"slack_event_id,omitempty"`
 	SlackEventTime int    `json:"slack_event_time,omitempty"`
@@ -45,4 +60,6 @@ type MessageV1 struct {
 	MessageTS string `json:"message_ts"`
 	UserID    string `json:"user_id"`
 	Text      string `json:"text"`
+	// PipelineAnchorText is the full human message at the pipeline root (schema 4+); Text is step-scoped.
+	PipelineAnchorText string `json:"pipeline_anchor_text,omitempty"`
 }

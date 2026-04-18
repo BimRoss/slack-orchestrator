@@ -150,7 +150,7 @@ func TestDecideMentionTool(t *testing.T) {
 	}
 }
 
-func TestDecideMentionToolFanoutForMultipleMentions(t *testing.T) {
+func TestDecideMentionToolPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
@@ -158,15 +158,15 @@ func TestDecideMentionToolFanoutForMultipleMentions(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
-	d := Decide(cfg, Input{Text: "<@UJOANNE> <@UROSS> read-twitter"})
-	if d.Trigger != TriggerMention || d.Kind != KindTool || d.ToolID != "read-twitter" {
+	d := Decide(cfg, Input{ChannelID: "C", MessageTS: "9.0", Text: "<@UJOANNE> read twitter <@UROSS> read trends"})
+	if d.Trigger != TriggerMention || d.ExecutionMode != ExecutionModePipeline {
 		t.Fatalf("got %+v", d)
 	}
-	if d.DispatchMode != DispatchModeFanout {
-		t.Fatalf("multi mention tool must fan out: %+v", d)
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("pipeline must single-target first step: %+v", d)
 	}
-	if len(d.Employees) != 2 || d.Employees[0] != "ross" || d.Employees[1] != "joanne" {
-		t.Fatalf("mentions should be ordered by roster: %+v", d)
+	if len(d.PipelineSteps) != 2 || d.PipelineSteps[0].ToolID != "read-twitter" || d.PipelineSteps[1].ToolID != "read-trends" {
+		t.Fatalf("pipeline_steps=%+v", d.PipelineSteps)
 	}
 }
 
@@ -187,7 +187,7 @@ func TestDecideMentionConversationFallback(t *testing.T) {
 	}
 }
 
-func TestDecideMentionConversationFanoutForMultipleMentions(t *testing.T) {
+func TestDecideMentionConversationPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
@@ -195,15 +195,15 @@ func TestDecideMentionConversationFanoutForMultipleMentions(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
-	d := Decide(cfg, Input{Text: "hey <@UJOANNE> and <@UROSS> can you both check?"})
-	if d.Trigger != TriggerMention || d.Kind != KindConversation {
+	d := Decide(cfg, Input{ChannelID: "C", MessageTS: "8.0", Text: "hey <@UJOANNE> and <@UROSS> can you both check?"})
+	if d.Trigger != TriggerMention || d.ExecutionMode != ExecutionModePipeline {
 		t.Fatalf("got %+v", d)
 	}
-	if d.DispatchMode != DispatchModeFanout {
-		t.Fatalf("multi mention must fan out: %+v", d)
+	if d.DispatchMode != DispatchModeSingle || len(d.Employees) != 1 {
+		t.Fatalf("pipeline first hop: %+v", d)
 	}
-	if len(d.Employees) != 2 || d.Employees[0] != "ross" || d.Employees[1] != "joanne" {
-		t.Fatalf("mentions should be ordered by roster: %+v", d)
+	if len(d.PipelineSteps) != 2 || d.PipelineSteps[0].Kind != KindConversation {
+		t.Fatalf("steps=%+v", d.PipelineSteps)
 	}
 }
 

@@ -46,6 +46,12 @@ type Decision struct {
 	DispatchMode DispatchMode `json:"dispatch_mode"`
 	// PrimaryEmployee is the canonical actor for single-target turns (first responder); empty for pure fanout.
 	PrimaryEmployee string `json:"primary_employee,omitempty"`
+
+	// ExecutionMode is empty for legacy decisions, or ExecutionModePipeline for ordered multi-step chains.
+	ExecutionMode     string         `json:"execution_mode,omitempty"`
+	PipelineSteps     []PipelineStep `json:"pipeline_steps,omitempty"`
+	PipelineStepIndex int            `json:"pipeline_step_index,omitempty"`
+	ChainID           string         `json:"chain_id,omitempty"`
 }
 
 // Slack user mentions in message text (bot user ids are typically U…; include A for app-style ids when present).
@@ -88,6 +94,9 @@ func Decide(cfg DecideConfig, in Input) Decision {
 
 	mentioned := mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 	if len(mentioned) > 0 {
+		if pd, ok := TryPipelineDecision(cfg, in); ok {
+			return pd
+		}
 		toolID, k := ClassifyToolOrConversation(text)
 		if k == KindTool && toolID != "" {
 			d := Decision{

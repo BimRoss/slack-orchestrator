@@ -2,10 +2,13 @@ package dispatch
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -79,8 +82,32 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	var results []decisionlog.DispatchResult
 
 	eventID, eventTime, teamID, apiAppID := callbackMeta(outer)
+	schemaVer := inbound.SchemaVersion
+	msgText := in.Text
+	var pipelineAnchor string
+	if strings.EqualFold(strings.TrimSpace(d.ExecutionMode), routing.ExecutionModePipeline) && len(d.PipelineSteps) > 0 {
+		schemaVer = inbound.SchemaVersionPipeline
+		idx := d.PipelineStepIndex
+		if idx < 0 {
+			idx = 0
+		}
+		if idx < len(d.PipelineSteps) {
+			st := strings.TrimSpace(d.PipelineSteps[idx].StepText)
+			if st != "" {
+				msgText = st
+			}
+			pipelineAnchor = strings.TrimSpace(in.Text)
+		}
+	}
+	var traceRun string
+	if strings.EqualFold(strings.TrimSpace(d.ExecutionMode), routing.ExecutionModePipeline) && len(d.PipelineSteps) > 0 {
+		traceRun = newPipelineRunID()
+	}
 	payloadBase := inbound.EventV1{
-		SchemaVersion:  inbound.SchemaVersion,
+		SchemaVersion:  schemaVer,
+		TraceID:        traceRun,
+		RunID:          traceRun,
+		TriggerSource:  inbound.TriggerSourceSlack,
 		SlackEventID:   eventID,
 		SlackEventTime: eventTime,
 		TeamID:         teamID,
@@ -88,11 +115,12 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		InnerType:      innerType,
 		Decision:       d,
 		Message: inbound.MessageV1{
-			ChannelID: in.ChannelID,
-			ThreadTS:  in.ThreadTS,
-			MessageTS: in.MessageTS,
-			UserID:    in.UserID,
-			Text:      in.Text,
+			ChannelID:          in.ChannelID,
+			ThreadTS:           in.ThreadTS,
+			MessageTS:          in.MessageTS,
+			UserID:             in.UserID,
+			Text:               msgText,
+			PipelineAnchorText: pipelineAnchor,
 		},
 		Capabilities: inbound.DefaultCapabilityContractJSON(),
 	}
@@ -128,7 +156,11 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		}
 		metrics.DelegatePublishSeconds.WithLabelValues("success").Observe(time.Since(start).Seconds())
 		metrics.DelegatePublishTotal.WithLabelValues("success").Inc()
-		slog.Info("orchestrator_dispatch_ok", "employee", emp, "subject", subject)
+		if traceRun != "" {
+			slog.Info("orchestrator_dispatch_ok", "employee", emp, "subject", subject, "run_id", traceRun, "trace_id", traceRun)
+		} else {
+			slog.Info("orchestrator_dispatch_ok", "employee", emp, "subject", subject)
+		}
 		results = append(results, decisionlog.DispatchResult{Employee: emp, OK: true})
 	}
 	return results
@@ -187,6 +219,14 @@ func ensureStream(js jetStreamClient, name string) error {
 		return fmt.Errorf("add stream %q: %w", name, err)
 	}
 	return nil
+}
+
+func newPipelineRunID() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "run_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	}
+	return "run_" + hex.EncodeToString(b[:])
 }
 
 func callbackMeta(ev slackevents.EventsAPIEvent) (eventID string, eventTime int, teamID, apiAppID string) {
