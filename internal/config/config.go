@@ -71,7 +71,7 @@ func FromEnv() Config {
 		NatsStream:      strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_STREAM")),
 
 		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
-		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", false),
+		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", true),
 		DecisionLogMax: getenvInt("ORCHESTRATOR_DECISION_LOG_MAX", defaultDecisionLogMax),
 	}
 	if cfg.HTTPAddr == "" {

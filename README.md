@@ -55,10 +55,9 @@ Shortcuts: **`make env-dev`** / **`make env-prod`**, **`make run-dev`** / **`mak
 The decision log is **not** shared across pods. If you scale the Deployment to 2+, the Service round-robins `/debug/decisions` and **`/orchestrator` on makeacompany.ai will look like random events are missing** (each pod has its own buffer). **Keep `replicas: 1`** in GitOps unless you add Redis/SQL persistence for decisions or a single dedicated debug endpoint.
 
 Slack **Socket Mode** for this app is also operated as **one active connection** in practice; do not scale out for “HA” without an explicit design (shared store, leader election, or Slack’s recommended topology).
-  - **`ORCHESTRATOR_DEBUG_ALLOW_ANON=true`**: no `Authorization` header (convenience; use behind firewall or turn off later).
-  - Otherwise **`ORCHESTRATOR_DEBUG_TOKEN`** must be set and requests must send `Authorization: Bearer <token>`. If the token is unset and anon is off, the endpoint returns **503**.
+  - **`ORCHESTRATOR_DEBUG_ALLOW_ANON`** defaults to **true** (no `Authorization` header). Set **`ORCHESTRATOR_DEBUG_ALLOW_ANON=false`** and **`ORCHESTRATOR_DEBUG_TOKEN`** to require `Authorization: Bearer <token>`; if the token is unset and anon is off, the endpoint returns **503**.
 
-The **makeacompany.ai** page **`/orchestrator`** proxies via **`ORCHESTRATOR_DEBUG_BASE_URL`** on the frontend; set **`ORCHESTRATOR_DEBUG_ALLOW_ANON`** the same on both services, or use a shared **`ORCHESTRATOR_DEBUG_TOKEN`** in `makeacompany-ai-runtime-secrets` and orchestrator secrets.
+The **makeacompany.ai** **`/admin`** orchestrator log proxies via **`ORCHESTRATOR_DEBUG_BASE_URL`**; set optional **`ORCHESTRATOR_DEBUG_TOKEN`** on the Next app when the orchestrator requires a bearer.
 
 Logging is **always JSON** (`log/slog` with a JSON handler) to **stdout** via **`internal/logging.Init()`** from `main`, so cluster UIs that only collect stdout still show logs.
 
