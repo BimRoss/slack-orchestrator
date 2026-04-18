@@ -138,7 +138,7 @@ func TestDecideMentionTool(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
-	d := Decide(cfg, Input{Text: "<@UGARTH> search twitter for bitcoin"})
+	d := Decide(cfg, Input{Text: "<@UGARTH> read-twitter"})
 	if d.Trigger != TriggerMention || d.Employees[0] != "garth" {
 		t.Fatalf("got %+v", d)
 	}
@@ -158,7 +158,7 @@ func TestDecideMentionToolFanoutForMultipleMentions(t *testing.T) {
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
-	d := Decide(cfg, Input{Text: "<@UJOANNE> <@UROSS> search twitter for AI creators"})
+	d := Decide(cfg, Input{Text: "<@UJOANNE> <@UROSS> read-twitter"})
 	if d.Trigger != TriggerMention || d.Kind != KindTool || d.ToolID != "read-twitter" {
 		t.Fatalf("got %+v", d)
 	}
@@ -336,13 +336,6 @@ func TestDecidePlainThreadFollowsRootMention(t *testing.T) {
 	}
 	if len(d.Employees) != 1 || d.Employees[0] != "ross" {
 		t.Fatalf("want ross from thread root mention; got %+v", d)
-	}
-}
-
-func TestClassifyToolOrConversationAmbiguous(t *testing.T) {
-	tool, k := ClassifyToolOrConversation("we have email and twitter tooling")
-	if k != KindConversation || tool != "" {
-		t.Fatalf("tool=%q k=%s", tool, k)
 	}
 }
 

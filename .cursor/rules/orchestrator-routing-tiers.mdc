@@ -1,0 +1,13 @@
+---
+description: "Orchestrator routing tiers — Tier 1 explicit tool names; link to workspace doctrine."
+globs: "internal/routing/**/*.go"
+alwaysApply: false
+---
+
+# slack-orchestrator routing tiers
+
+**Tier 1** policy (explicit canonical skill names in `ClassifyToolOrConversation`, no broad keyword lists in `tools.go`) is defined in the workspace **`cursor-rules`** repo:
+
+- **`bimross-orchestrator-routing-tiers.mdc`**
+
+Also referenced from **`slack-deterministic-tool-routing-contract.mdc`** (always-on). When editing **`internal/routing/tools.go`** or **`decide.go`**, follow that doctrine and keep **`tier1ExplicitToolIDs`** aligned with **`internal/inbound.DefaultCapabilityContractV1`** skill ids.

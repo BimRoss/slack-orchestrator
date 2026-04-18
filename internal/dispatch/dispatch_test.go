@@ -77,7 +77,7 @@ func TestDecision_MultiMentionToolFanoutPublishesPerEmployee(t *testing.T) {
 		ThreadTS:  "177.1",
 		MessageTS: "177.2",
 		UserID:    "UHuman",
-		Text:      "<@UJOANNE> <@UROSS> search twitter for AI creators",
+		Text:      "<@UJOANNE> <@UROSS> read-twitter",
 	}
 	d := routing.Decision{
 		Trigger:      routing.TriggerMention,

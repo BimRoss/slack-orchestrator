@@ -12,9 +12,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bimross/slack-orchestrator/internal/channelmembers"
 	"github.com/bimross/slack-orchestrator/internal/config"
 	"github.com/bimross/slack-orchestrator/internal/decisionlog"
 	"github.com/bimross/slack-orchestrator/internal/logging"
+	"github.com/bimross/slack-orchestrator/internal/memberchannels"
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
@@ -46,6 +48,8 @@ func main() {
 	logStore := decisionlog.New(cfg.DecisionLogMax)
 	slackrun.SetDecisionLog(logStore)
 	mux.HandleFunc("/debug/decisions", decisionlog.HTTPHandler(logStore, cfg.DebugToken, cfg.DebugAllowAnon))
+	mux.HandleFunc("/debug/member-channels", memberchannels.HTTPHandler(cfg.BotToken, cfg.DebugToken, cfg.DebugAllowAnon))
+	mux.HandleFunc("/debug/channel-members", channelmembers.HTTPHandler(cfg.BotToken, cfg.DebugToken, cfg.DebugAllowAnon))
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	go func() {
 		slog.Info("http_listen", "addr", cfg.HTTPAddr)
