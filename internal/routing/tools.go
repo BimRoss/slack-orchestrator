@@ -11,11 +11,13 @@ import (
 //
 // Match only when the user explicitly names the tool: "read-company", "read company",
 // "read_company", etc. Substrings like "onboard" or "search twitter for …" do not match.
+// Keep in sync with internal/inbound.DefaultCapabilityContractV1 Skills[].ID.
 var tier1ExplicitToolIDs = []string{
 	"write-email",
 	"write-doc",
 	"write-company",
 	"read-company",
+	"read-skills",
 	"read-twitter",
 	"read-trends",
 }

@@ -72,6 +72,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{"intent"}, OptionalParams: []string{},
 			},
 			{
+				ID: "read-skills", Label: "Read Skills", Description: "List team skills from the orchestrator capability catalog (who has which skills). Runs immediately (no confirmation).",
+				RuntimeTool: "joanne-read-skills", RequiredParams: []string{"intent"}, OptionalParams: []string{},
+			},
+			{
 				ID: "read-twitter", Label: "Read Twitter", Description: "Search Twitter by keyword and fetch high-impression tweets (not the platform trend list).",
 				RuntimeTool: "garth-read-twitter", RequiredParams: []string{"intent", "query"}, OptionalParams: []string{"count"},
 			},
@@ -85,7 +89,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {},
 			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "write-company", "write-email", "write-doc"},
+			"joanne": {"read-company", "read-skills", "write-company", "write-email", "write-doc"},
 		},
 	}
 }
