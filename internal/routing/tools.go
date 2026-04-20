@@ -6,43 +6,53 @@ import (
 	"strings"
 )
 
-// tier1ExplicitToolIDs are canonical skill ids (Tier 1 routing). Keep in sync with
-// internal/inbound.DefaultCapabilityContractV1 Skills[].ID when adding skills.
+// tier1PatternEntry binds a message pattern (hyphenated skill id) to the canonical skill id
+// returned from Tier 1. Legacy write-* patterns map to create-* (CRUD naming).
+//
+// Keep canonical ids in sync with internal/inbound.DefaultCapabilityContractV1 Skills[].ID.
 //
 // Match only when the user explicitly names the tool: "read-company", "read company",
 // "read_company", etc. Substrings like "onboard" or "search twitter for …" do not match.
-// Keep in sync with internal/inbound.DefaultCapabilityContractV1 Skills[].ID.
-var tier1ExplicitToolIDs = []string{
-	"write-email",
-	"write-doc",
-	"write-company",
-	"read-company",
-	"read-skills",
-	"read-twitter",
-	"read-trends",
+var tier1PatternEntries = []struct {
+	patternID   string
+	canonicalID string
+}{
+	{"create-email", "create-email"},
+	{"write-email", "create-email"},
+	{"create-doc", "create-doc"},
+	{"write-doc", "create-doc"},
+	{"create-company", "create-company"},
+	{"write-company", "create-company"},
+	{"read-company", "read-company"},
+	{"read-skills", "read-skills"},
+	{"read-twitter", "read-twitter"},
+	{"read-trends", "read-trends"},
 }
 
 var tier1ToolPatterns []tier1Pattern
 
 type tier1Pattern struct {
-	toolID string
-	re     *regexp.Regexp
+	canonicalID string
+	re          *regexp.Regexp
 }
 
 var reSlackAngleTokens = regexp.MustCompile(`<[@#][^>]*>`)
 
 func init() {
-	ids := append([]string(nil), tier1ExplicitToolIDs...)
-	sort.SliceStable(ids, func(i, j int) bool {
-		if len(ids[i]) != len(ids[j]) {
-			return len(ids[i]) > len(ids[j])
+	entries := append([]struct {
+		patternID   string
+		canonicalID string
+	}(nil), tier1PatternEntries...)
+	sort.SliceStable(entries, func(i, j int) bool {
+		if len(entries[i].patternID) != len(entries[j].patternID) {
+			return len(entries[i].patternID) > len(entries[j].patternID)
 		}
-		return ids[i] < ids[j]
+		return entries[i].patternID < entries[j].patternID
 	})
-	for _, id := range ids {
+	for _, e := range entries {
 		tier1ToolPatterns = append(tier1ToolPatterns, tier1Pattern{
-			toolID: id,
-			re:     mustCompileTier1Pattern(id),
+			canonicalID: e.canonicalID,
+			re:          mustCompileTier1Pattern(e.patternID),
 		})
 	}
 }
@@ -81,7 +91,7 @@ func ClassifyToolOrConversation(text string) (toolID string, mode Kind) {
 	}
 	for _, p := range tier1ToolPatterns {
 		if p.re.MatchString(t) {
-			return p.toolID, KindTool
+			return p.canonicalID, KindTool
 		}
 	}
 	return "", KindConversation

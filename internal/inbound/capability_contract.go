@@ -53,18 +53,18 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		},
 		Skills: []CapabilitySkillV1{
 			{
-				ID: "write-email", Label: "Write Email", Description: "Draft, send, and triage email communication.",
-				RuntimeTool: "joanne-write-email", RequiredParams: []string{"intent", "subject"},
+				ID: "create-email", Label: "Create Email", Description: "Draft, send, and triage email communication. Requires confirmation before send.",
+				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "subject"},
 				OptionalParams: []string{"to", "button", "commenters", "editors", "link", "viewers"},
 			},
 			{
-				ID: "write-doc", Label: "Write Doc", Description: "Create, edit, and organize working docs.",
-				RuntimeTool: "joanne-write-doc", RequiredParams: []string{"intent", "title", "type"},
+				ID: "create-doc", Label: "Create Doc", Description: "Create, edit, and organize working docs. Requires confirmation before publish.",
+				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "type"},
 				OptionalParams: []string{"commenters", "editors", "viewers"},
 			},
 			{
-				ID: "write-company", Label: "Write Company", Description: "Provision a company channel, run onboarding, create channels, and invite members.",
-				RuntimeTool: "joanne-write-company", RequiredParams: []string{"action", "intent"},
+				ID: "create-company", Label: "Create Company", Description: "Provision a company channel, run onboarding, create channels, and invite members. Requires confirmation before writes.",
+				RuntimeTool: "joanne-create-company", RequiredParams: []string{"action", "intent"},
 				OptionalParams: []string{"channel", "channel_name", "is_private", "reason"},
 			},
 			{
@@ -89,7 +89,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {},
 			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "read-skills", "write-company", "write-email", "write-doc"},
+			"joanne": {"read-company", "read-skills", "create-company", "create-email", "create-doc"},
 		},
 	}
 }

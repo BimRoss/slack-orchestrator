@@ -10,4 +10,4 @@ alwaysApply: false
 
 - **`bimross-orchestrator-routing-tiers.mdc`**
 
-Also referenced from **`slack-deterministic-tool-routing-contract.mdc`** (always-on). When editing **`internal/routing/tools.go`** or **`decide.go`**, follow that doctrine and keep **`tier1ExplicitToolIDs`** aligned with **`internal/inbound.DefaultCapabilityContractV1`** skill ids.
+Also referenced from **`slack-deterministic-tool-routing-contract.mdc`** (always-on). When editing **`internal/routing/tools.go`** or **`decide.go`**, follow that doctrine and keep **`tier1PatternEntries`** (canonical skill ids + legacy `write-*` patterns) aligned with **`internal/inbound.DefaultCapabilityContractV1`** skill ids.
