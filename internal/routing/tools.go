@@ -31,6 +31,24 @@ var tier1PatternEntries = []struct {
 
 var tier1ToolPatterns []tier1Pattern
 
+// Tier1CanonicalSkillIDs returns sorted unique canonical skill IDs bound in [tier1PatternEntries].
+func Tier1CanonicalSkillIDs() []string {
+	seen := map[string]struct{}{}
+	for _, e := range tier1PatternEntries {
+		id := strings.TrimSpace(e.canonicalID)
+		if id == "" {
+			continue
+		}
+		seen[id] = struct{}{}
+	}
+	out := make([]string, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
 type tier1Pattern struct {
 	canonicalID string
 	re          *regexp.Regexp
