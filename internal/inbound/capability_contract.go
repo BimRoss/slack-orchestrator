@@ -21,13 +21,14 @@ type CapabilityEmployeeV1 struct {
 
 // CapabilitySkillV1 is a skill definition with runtime tool binding.
 type CapabilitySkillV1 struct {
-	ID             string   `json:"id"`
-	Label          string   `json:"label"`
-	Description    string   `json:"description"`
-	RuntimeTool    string   `json:"runtimeTool"`
-	RequiredParams []string `json:"requiredParams"`
-	OptionalParams []string `json:"optionalParams"`
-	Requires       []string `json:"requires,omitempty"`
+	ID             string            `json:"id"`
+	Label          string            `json:"label"`
+	Description    string            `json:"description"`
+	RuntimeTool    string            `json:"runtimeTool"`
+	RequiredParams []string          `json:"requiredParams"`
+	OptionalParams []string          `json:"optionalParams"`
+	ParamDefaults  map[string]string `json:"paramDefaults,omitempty"`
+	Requires       []string          `json:"requires,omitempty"`
 }
 
 // DefaultCapabilityContractJSON returns JSON bytes for the default BimRoss squad contract (canonical here).
@@ -54,34 +55,52 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		Skills: []CapabilitySkillV1{
 			{
 				ID: "create-email", Label: "Create Email", Description: "Draft, send, and triage email communication. Requires confirmation before send.",
-				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "subject"},
-				OptionalParams: []string{"to", "button", "commenters", "editors", "link", "viewers"},
+				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent"},
+				OptionalParams: []string{"subject", "to", "button", "commenters", "editors", "link", "viewers"},
+				ParamDefaults: map[string]string{
+					"subject":    "Note from BimRoss",
+					"to":         "Slack requester's profile email",
+					"button":     "none",
+					"commenters": "none",
+					"editors":    "none",
+					"link":       "none",
+					"viewers":    "none",
+				},
 			},
 			{
 				ID: "create-doc", Label: "Create Doc", Description: "Create, edit, and organize working docs. Requires confirmation before publish.",
-				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "type"},
-				OptionalParams: []string{"commenters", "editors", "viewers"},
+				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent"},
+				OptionalParams: []string{"title", "type", "commenters", "editors", "viewers"},
+				ParamDefaults: map[string]string{
+					"title":      "Doc from BimRoss",
+					"type":       "outline",
+					"commenters": "none",
+					"editors":    "none",
+					"viewers":    "none",
+				},
 			},
 			{
 				ID: "create-company", Label: "Create Company", Description: "Provision a company channel, run onboarding, create channels, and invite members. Requires confirmation before writes.",
-				RuntimeTool: "joanne-create-company", RequiredParams: []string{"action", "intent"},
-				OptionalParams: []string{"channel", "channel_name", "is_private", "reason"},
+				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name"}, OptionalParams: []string{"founders"},
+				ParamDefaults: map[string]string{
+					"founders": "Message author; add others with @mention",
+				},
 			},
 			{
 				ID: "read-company", Label: "Read Company", Description: "Summarize this channel from cached Slack history (Redis digest). Runs immediately (no confirmation).",
-				RuntimeTool: "joanne-read-company", RequiredParams: []string{"intent"}, OptionalParams: []string{},
+				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
 				ID: "read-skills", Label: "Read Skills", Description: "List team skills from the orchestrator capability catalog (who has which skills). Runs immediately (no confirmation).",
-				RuntimeTool: "joanne-read-skills", RequiredParams: []string{"intent"}, OptionalParams: []string{},
+				RuntimeTool: "joanne-read-skills", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
 				ID: "read-twitter", Label: "Read Twitter", Description: "Search Twitter by keyword and fetch high-impression tweets (not the platform trend list).",
-				RuntimeTool: "garth-read-twitter", RequiredParams: []string{"intent", "query"}, OptionalParams: []string{"count"},
+				RuntimeTool: "garth-read-twitter", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
 			},
 			{
 				ID: "read-trends", Label: "Read Trends", Description: "Fetch the current Twitter/X trend list (not keyword search).",
-				RuntimeTool: "garth-read-trends", RequiredParams: []string{"intent"}, OptionalParams: []string{"count"},
+				RuntimeTool: "garth-read-trends", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 		},
 		EmployeeSkillIDs: map[string][]string{
