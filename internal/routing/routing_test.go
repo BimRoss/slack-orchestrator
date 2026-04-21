@@ -501,7 +501,7 @@ func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
 	}
 }
 
-func TestDecide_CompanyOnboardingPlainRoutesToJoanne(t *testing.T) {
+func TestDecide_CompanyOnboardingShapedPlainUsesPlainResponder(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex", "UJOANNE": "joanne"},
@@ -516,8 +516,9 @@ func TestDecide_CompanyOnboardingPlainRoutesToJoanne(t *testing.T) {
 		Text:      "2",
 	}
 	d := Decide(cfg, in)
-	if len(d.Employees) != 1 || d.Employees[0] != "joanne" || d.PrimaryEmployee != "joanne" {
-		t.Fatalf("want joanne for onboarding path reply at channel root; got %+v", d)
+	want := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
+	if d.Trigger != TriggerPlain || len(d.Employees) != 1 || d.Employees[0] != want {
+		t.Fatalf("onboarding-shaped text should use plain responder; got %+v want employee=%q", d, want)
 	}
 }
 
@@ -542,7 +543,7 @@ func TestDecide_OnboardingReplyDoesNotOverrideThreadHandoff(t *testing.T) {
 	}
 }
 
-func TestDecide_CompanyOnboardingThreadNoHandoffRoutesToJoanne(t *testing.T) {
+func TestDecide_CompanyOnboardingShapedThreadNoHandoffUsesPlainResponder(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex"},
@@ -558,8 +559,9 @@ func TestDecide_CompanyOnboardingThreadNoHandoffRoutesToJoanne(t *testing.T) {
 		ThreadPlainHandoffKey: "",
 	}
 	d := Decide(cfg, in)
-	if len(d.Employees) != 1 || d.Employees[0] != "joanne" {
-		t.Fatalf("want joanne when thread has no squad handoff; got %+v", d)
+	want := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
+	if d.Trigger != TriggerPlain || len(d.Employees) != 1 || d.Employees[0] != want {
+		t.Fatalf("onboarding-shaped thread reply without handoff should use plain responder; got %+v want employee=%q", d, want)
 	}
 }
 

@@ -166,19 +166,6 @@ func Decide(cfg DecideConfig, in Input) Decision {
 		}
 	}
 
-	// Joanne company-channel onboarding (welcome: paths 1/2/3). Plain channel-root messages otherwise
-	// use pickPlainResponder (random squad) and never reach Joanne's onboarding handler. Same for thread
-	// replies when there is no squad @mention handoff yet.
-	if MatchCompanyOnboardingPath(text) != "" {
-		if strings.TrimSpace(in.ThreadTS) == "" || strings.TrimSpace(in.ThreadPlainHandoffKey) == "" {
-			return withSingleMeta(Decision{
-				Trigger:   TriggerPlain,
-				Employees: []string{"joanne"},
-				Kind:      KindConversation,
-			})
-		}
-	}
-
 	// Plain message → one responder: first agent after the same shuffle as @here/@channel multi-agent
 	// (shuffleOrder(message_ts, roster, secret)[0]; keys vary per message like broadcast slot order).
 	picked := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
