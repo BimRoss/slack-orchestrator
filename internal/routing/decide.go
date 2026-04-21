@@ -208,6 +208,36 @@ func SquadMentionsFromText(text string, cfg DecideConfig) []string {
 	return mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 }
 
+// SquadBotMentionsOtherSquadMember is true when the message is authored by a configured squad bot
+// (posting user id appears in BotUserToKey) and the text @mentions a different squad bot by user id.
+// Employee-factory posts this pattern for capability delegation (e.g. Tim sends @Joanne with the
+// operator's text). Without an exception, slack-orchestrator drops every message with bot_id before
+// NATS dispatch, so the specialist never runs.
+func SquadBotMentionsOtherSquadMember(cfg DecideConfig, postingUserID, text string) bool {
+	postingUserID = strings.TrimSpace(postingUserID)
+	if postingUserID == "" || len(cfg.BotUserToKey) == 0 {
+		return false
+	}
+	posterKey, ok := cfg.BotUserToKey[postingUserID]
+	if !ok {
+		return false
+	}
+	matches := reSlackUserMention.FindAllStringSubmatch(text, -1)
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		uid := m[1]
+		if uid == postingUserID {
+			continue
+		}
+		if key, ok := cfg.BotUserToKey[uid]; ok && !strings.EqualFold(key, posterKey) {
+			return true
+		}
+	}
+	return false
+}
+
 func mentionedEmployeeKeys(text string, botUserToKey map[string]string, order []string) []string {
 	if len(botUserToKey) == 0 {
 		return nil

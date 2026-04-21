@@ -58,13 +58,23 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 	effThread := effectiveThreadTS(ev)
 	logMessageIngress(outer, "message", ev.Channel, effThread, ev.TimeStamp, effUser, effBot, ev.SubType, ev.ChannelType, effText, topLevelTextEmpty(ev))
 
-	if effUser == "" || effBot != "" {
-		reason := "missing_user"
-		if effBot != "" {
-			reason = "bot_or_integration_message"
-		}
-		logMessageDrop(outer, "message", reason, ev.Channel, effThread, ev.TimeStamp)
+	if effUser == "" {
+		logMessageDrop(outer, "message", "missing_user", ev.Channel, effThread, ev.TimeStamp)
 		return
+	}
+	if effBot != "" {
+		rc := routingDecideConfig(cfg)
+		if !routing.SquadBotMentionsOtherSquadMember(rc, effUser, effText) {
+			logMessageDrop(outer, "message", "bot_or_integration_message", ev.Channel, effThread, ev.TimeStamp)
+			return
+		}
+		slog.Info("orchestrator_message_allow_squad_bot_delegation",
+			"slack_event_id", slackEventID(outer),
+			"channel_id", strings.TrimSpace(ev.Channel),
+			"thread_ts", strings.TrimSpace(effThread),
+			"message_ts", strings.TrimSpace(ev.TimeStamp),
+			"posting_user_id", strings.TrimSpace(effUser),
+		)
 	}
 	if st != "" && st != "thread_broadcast" {
 		if st == "message_changed" || st == "message_deleted" {

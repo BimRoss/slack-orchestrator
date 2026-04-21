@@ -419,3 +419,22 @@ func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
 		t.Fatalf("want joanne handoff; got %+v", d)
 	}
 }
+
+func TestSquadBotMentionsOtherSquadMember(t *testing.T) {
+	cfg := DecideConfig{
+		Order:        []string{"tim", "joanne"},
+		BotUserToKey: map[string]string{"UTIM": "tim", "UJOANNE": "joanne"},
+	}
+	if !SquadBotMentionsOtherSquadMember(cfg, "UTIM", "<@UJOANNE> what has happened lately at the company") {
+		t.Fatal("expected tim→joanne delegation")
+	}
+	if SquadBotMentionsOtherSquadMember(cfg, "UTIM", "<@UTIM> ping myself") {
+		t.Fatal("did not expect mention-only-self")
+	}
+	if SquadBotMentionsOtherSquadMember(cfg, "UXUNKNOWN", "<@UJOANNE> hi") {
+		t.Fatal("did not expect non-squad poster")
+	}
+	if SquadBotMentionsOtherSquadMember(cfg, "UJOANNE", "no mentions") {
+		t.Fatal("did not expect text without squad mentions")
+	}
+}
