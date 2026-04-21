@@ -192,6 +192,27 @@ func TestDecideMentionToolPipelineForMultipleMentions(t *testing.T) {
 	}
 }
 
+func TestDecideSquadBotParticipantListDoesNotPipelineToMentionedBots(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne", "UALEX": "alex", "UGARTH": "garth"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	text := "Create this company workspace?\n\nParticipants: <@UALEX>, <@UGARTH>"
+	d := Decide(cfg, Input{UserID: "UJOANNE", MessageTS: "1.0", Text: text})
+	if d.PrimaryEmployee != "joanne" || len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("want poster only, got %+v", d)
+	}
+	if d.ExecutionMode == ExecutionModePipeline {
+		t.Fatalf("participant roster must not become pipeline: %+v", d)
+	}
+	if d.Kind != KindConversation || d.Trigger != TriggerPlain {
+		t.Fatalf("got %+v", d)
+	}
+}
+
 func TestDecideMentionConversationFallback(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"tim"},

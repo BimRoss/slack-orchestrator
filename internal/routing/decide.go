@@ -94,6 +94,26 @@ func Decide(cfg DecideConfig, in Input) Decision {
 
 	mentioned := mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 	if len(mentioned) > 0 {
+		// A squad bot posted text that @mentions two or more other squad bots. That pattern is used for
+		// participant rosters (e.g. Joanne create-company confirmation), not Tim→Joanne delegation
+		// (typically a single <@specialist> in the text). Pipeline / multi-target routing would otherwise
+		// deliver the message to the first listed bot (e.g. Alex) and trigger spurious replies.
+		if posterKey, ok := cfg.BotUserToKey[strings.TrimSpace(in.UserID)]; ok && posterKey != "" && len(mentioned) >= 2 {
+			toolID, k := ClassifyToolOrConversation(text)
+			if k == KindTool && toolID != "" {
+				return withSingleMeta(Decision{
+					Trigger:   TriggerPlain,
+					Employees: []string{posterKey},
+					Kind:      KindTool,
+					ToolID:    toolID,
+				})
+			}
+			return withSingleMeta(Decision{
+				Trigger:   TriggerPlain,
+				Employees: []string{posterKey},
+				Kind:      KindConversation,
+			})
+		}
 		if pd, ok := TryPipelineDecision(cfg, in); ok {
 			return pd
 		}
