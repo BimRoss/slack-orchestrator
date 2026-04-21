@@ -75,7 +75,8 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	bc := ClassifyBroadcastTrigger(text)
 	switch bc {
 	case BroadcastEveryone:
-		emps := limitParticipants(cfg.Order, cfg.EveryoneLimit)
+		order := orderExcludingBroadcastPoster(cfg, in.UserID)
+		emps := limitParticipants(order, cfg.EveryoneLimit)
 		emps = shuffleOrder(strings.TrimSpace(in.MessageTS), emps, cfg.ShuffleSecret)
 		return withFanoutMeta(Decision{
 			Trigger:   TriggerEveryone,
@@ -83,7 +84,8 @@ func Decide(cfg DecideConfig, in Input) Decision {
 			Kind:      KindConversation,
 		})
 	case BroadcastChannel:
-		emps := limitParticipants(cfg.Order, cfg.ChannelLimit)
+		order := orderExcludingBroadcastPoster(cfg, in.UserID)
+		emps := limitParticipants(order, cfg.ChannelLimit)
 		emps = shuffleOrder(strings.TrimSpace(in.MessageTS), emps, cfg.ShuffleSecret)
 		return withFanoutMeta(Decision{
 			Trigger:   TriggerChannel,
@@ -232,6 +234,36 @@ func limitParticipants(order []string, limit int) []string {
 	}
 	out := make([]string, limit)
 	copy(out, order[:limit])
+	return out
+}
+
+// orderExcludingBroadcastPoster returns cfg.Order with the message author removed when they map to a
+// squad employee key (via BotUserToKey). Human authors and unknown user ids keep the full order so
+// @channel / @here behave unchanged; squad bots do not receive their own broadcast fan-out.
+func orderExcludingBroadcastPoster(cfg DecideConfig, posterUserID string) []string {
+	uid := strings.TrimSpace(posterUserID)
+	if uid == "" || len(cfg.BotUserToKey) == 0 {
+		return cfg.Order
+	}
+	posterKey, ok := cfg.BotUserToKey[uid]
+	if !ok {
+		return cfg.Order
+	}
+	posterKey = strings.ToLower(strings.TrimSpace(posterKey))
+	if posterKey == "" {
+		return cfg.Order
+	}
+	var out []string
+	for _, k := range cfg.Order {
+		kk := strings.ToLower(strings.TrimSpace(k))
+		if kk == posterKey {
+			continue
+		}
+		out = append(out, k)
+	}
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }
 

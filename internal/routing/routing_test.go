@@ -82,6 +82,66 @@ func TestDecideChannelLimitsToThree(t *testing.T) {
 	}
 }
 
+func TestDecideBroadcastChannelExcludesSquadPoster(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "test",
+	}
+	d := Decide(cfg, Input{
+		MessageTS: "99.0",
+		UserID:    "UJOANNE",
+		Text:      "<!channel> team intro",
+	})
+	if d.Trigger != TriggerChannel || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
+		t.Fatalf("got %+v", d)
+	}
+	for _, e := range d.Employees {
+		if e == "joanne" {
+			t.Fatalf("poster must not receive own broadcast: %v", d.Employees)
+		}
+	}
+	want := []string{"alex", "ross", "tim"}
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("want first three slots from roster excluding joanne, got %v", d.Employees)
+	}
+}
+
+func TestDecideBroadcastEveryoneExcludesSquadPoster(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "test",
+	}
+	d := Decide(cfg, Input{
+		MessageTS: "1.0",
+		UserID:    "UJOANNE",
+		Text:      "<!everyone> all hands",
+	})
+	if d.Trigger != TriggerEveryone || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 4 {
+		t.Fatalf("got %+v", d)
+	}
+	for _, e := range d.Employees {
+		if e == "joanne" {
+			t.Fatalf("poster must not receive own broadcast: %v", d.Employees)
+		}
+	}
+	want := []string{"alex", "garth", "ross", "tim"}
+	slices.Sort(want)
+	got := slices.Clone(d.Employees)
+	slices.Sort(got)
+	if !slices.Equal(want, got) {
+		t.Fatalf("want all roster except joanne, got %v", d.Employees)
+	}
+}
+
 func TestDecideBroadcastBeatsExplicitMention(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
