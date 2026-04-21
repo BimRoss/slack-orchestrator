@@ -87,7 +87,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "delete-company", Label: "Delete Company", Description: "Archive a company Slack channel and remove app-owned Redis data for that workspace. Requires explicit Confirm/Cancel before any write.",
+				ID: "delete-company", Label: "Delete Company", Description: "Permanently delete a company Slack channel and remove app-owned Redis data for that workspace (frees the channel name). Requires explicit Confirm/Cancel before any write.",
 				RuntimeTool: "joanne-delete-company", RequiredParams: []string{}, OptionalParams: []string{"channel"},
 				ParamDefaults: map[string]string{
 					"channel": "Current channel, or #name / channel link",
