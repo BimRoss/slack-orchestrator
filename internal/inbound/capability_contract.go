@@ -87,6 +87,13 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
+				ID: "delete-company", Label: "Delete Company", Description: "Archive a company Slack channel and remove app-owned Redis data for that workspace. Requires confirmation before writes.",
+				RuntimeTool: "joanne-delete-company", RequiredParams: []string{}, OptionalParams: []string{"channel"},
+				ParamDefaults: map[string]string{
+					"channel": "Current channel, or #name / channel link",
+				},
+			},
+			{
 				ID: "read-company", Label: "Read Company", Description: "Summarize this channel from cached Slack history (Redis digest). Runs immediately (no confirmation).",
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
@@ -108,7 +115,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {},
 			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "read-skills", "create-company", "create-email", "create-doc"},
+			"joanne": {"read-company", "read-skills", "create-company", "delete-company", "create-email", "create-doc"},
 		},
 	}
 }

@@ -23,6 +23,7 @@ var tier1PatternEntries = []struct {
 	{"write-doc", "create-doc"},
 	{"create-company", "create-company"},
 	{"write-company", "create-company"},
+	{"delete-company", "delete-company"},
 	{"read-company", "read-company"},
 	{"read-skills", "read-skills"},
 	{"read-twitter", "read-twitter"},
