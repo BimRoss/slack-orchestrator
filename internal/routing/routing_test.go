@@ -441,6 +441,68 @@ func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
 	}
 }
 
+func TestDecide_CompanyOnboardingPlainRoutesToJoanne(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UALEX": "alex", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID: "CNEWCO",
+		ThreadTS:  "",
+		MessageTS: "99.1",
+		Text:      "2",
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 1 || d.Employees[0] != "joanne" || d.PrimaryEmployee != "joanne" {
+		t.Fatalf("want joanne for onboarding path reply at channel root; got %+v", d)
+	}
+}
+
+func TestDecide_OnboardingReplyDoesNotOverrideThreadHandoff(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:             "C",
+		ThreadTS:              "100.0",
+		MessageTS:             "100.2",
+		Text:                  "1",
+		ThreadPlainHandoffKey: "ross",
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 1 || d.Employees[0] != "ross" {
+		t.Fatalf("want ross handoff preserved over onboarding match; got %+v", d)
+	}
+}
+
+func TestDecide_CompanyOnboardingThreadNoHandoffRoutesToJoanne(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UALEX": "alex"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:             "CNEWCO",
+		ThreadTS:              "100.0",
+		MessageTS:             "100.1",
+		Text:                  "1",
+		ThreadPlainHandoffKey: "",
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 1 || d.Employees[0] != "joanne" {
+		t.Fatalf("want joanne when thread has no squad handoff; got %+v", d)
+	}
+}
+
 func TestSquadBotMentionsOtherSquadMember(t *testing.T) {
 	cfg := DecideConfig{
 		Order:        []string{"tim", "joanne"},
