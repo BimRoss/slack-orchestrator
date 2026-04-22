@@ -583,3 +583,20 @@ func TestSquadBotMentionsOtherSquadMember(t *testing.T) {
 		t.Fatal("did not expect text without squad mentions")
 	}
 }
+
+func TestHasOnlyNonSquadMentions(t *testing.T) {
+	botMap := map[string]string{"UJOANNE": "joanne", "UTIM": "tim"}
+
+	if !HasOnlyNonSquadMentions("<@UGRANT> are you around?", botMap) {
+		t.Fatal("expected true for non-squad mention only")
+	}
+	if HasOnlyNonSquadMentions("<@UJOANNE> can you check this?", botMap) {
+		t.Fatal("did not expect true when a squad mention is present")
+	}
+	if HasOnlyNonSquadMentions("<@UGRANT> and <@UTIM> can you both look?", botMap) {
+		t.Fatal("did not expect true when mixed squad + non-squad mentions are present")
+	}
+	if HasOnlyNonSquadMentions("plain text, no mentions", botMap) {
+		t.Fatal("did not expect true for text without mentions")
+	}
+}

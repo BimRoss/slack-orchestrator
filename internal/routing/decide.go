@@ -290,6 +290,30 @@ func SquadBotMentionsOtherSquadMember(cfg DecideConfig, postingUserID, text stri
 	return false
 }
 
+// HasOnlyNonSquadMentions returns true when text contains at least one Slack @mention
+// and none of those mentions map to configured squad bots.
+func HasOnlyNonSquadMentions(text string, botUserToKey map[string]string) bool {
+	matches := reSlackUserMention.FindAllStringSubmatch(text, -1)
+	if len(matches) == 0 {
+		return false
+	}
+	hasNonSquad := false
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		uid := strings.TrimSpace(m[1])
+		if uid == "" {
+			continue
+		}
+		if _, ok := botUserToKey[uid]; ok {
+			return false
+		}
+		hasNonSquad = true
+	}
+	return hasNonSquad
+}
+
 func mentionedEmployeeKeys(text string, botUserToKey map[string]string, order []string) []string {
 	if len(botUserToKey) == 0 {
 		return nil

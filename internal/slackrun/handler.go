@@ -100,6 +100,10 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 		return
 	}
 	rc := routingDecideConfig(cfg)
+	if routing.HasOnlyNonSquadMentions(effText, rc.BotUserToKey) {
+		logMessageDrop(outer, "message", "human_to_human_mention", ev.Channel, effThread, ev.TimeStamp)
+		return
+	}
 	in := routing.Input{
 		ChannelID: ev.Channel,
 		ThreadTS:  effThread,
