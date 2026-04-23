@@ -55,42 +55,39 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		Skills: []CapabilitySkillV1{
 			{
 				ID: "create-email", Label: "Create Email", Description: "Draft, send, and triage email communication. Requires confirmation before send.",
-				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent"},
-				OptionalParams: []string{"subject", "to", "button", "commenters", "editors", "link", "viewers"},
+				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "to"},
+				OptionalParams: []string{"button", "link"},
 				ParamDefaults: map[string]string{
-					"subject":    "Note from BimRoss",
-					"to":         "Slack requester's profile email",
-					"button":     "none",
-					"commenters": "none",
-					"editors":    "none",
-					"link":       "none",
-					"viewers":    "none",
+					"to":     "Message author (Slack profile; makeacompany slack→email index when configured)",
+					"button": "none",
+					"link":   "none",
 				},
 			},
 			{
 				ID: "create-doc", Label: "Create Doc", Description: "Create, edit, and organize working docs. Requires confirmation before publish.",
-				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent"},
-				OptionalParams: []string{"title", "type", "commenters", "editors", "viewers"},
+				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "editors"},
+				OptionalParams: []string{"commenters", "viewers", "type"},
 				ParamDefaults: map[string]string{
-					"title":      "Doc from BimRoss",
+					"title":      "Derived from intent when omitted; runtime infers a working title before draft",
+					"editors":    "Message author email (implicit default); append @mentions or explicit editor emails",
 					"type":       "outline",
 					"commenters": "none",
-					"editors":    "none",
 					"viewers":    "none",
 				},
 			},
 			{
 				ID: "create-company", Label: "Create Company", Description: "Provision a company channel, run onboarding, create channels, and invite members. Requires confirmation before writes.",
-				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name"}, OptionalParams: []string{"founders"},
+				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name", "founders"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
-					"founders": "Message author; add others with @mention",
+					"name":     "Company / channel slug (gathered in-thread when not in the first message)",
+					"founders": "Message author (implicit default); the skill appends @mentioned cofounders",
 				},
 			},
 			{
 				ID: "delete-company", Label: "Delete Company", Description: "Permanently delete a company Slack channel and remove app-owned Redis data for that workspace (frees the channel name). Requires explicit Confirm/Cancel before any write.",
-				RuntimeTool: "joanne-delete-company", RequiredParams: []string{}, OptionalParams: []string{"channel"},
+				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"channel"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
-					"channel": "Current channel, or #name / channel link",
+					"channel": "The Slack channel where the command runs (implicit default; operators do not pass this at runtime)",
 				},
 			},
 			{
@@ -100,6 +97,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			{
 				ID: "read-skills", Label: "Read Skills", Description: "List team skills from the orchestrator capability catalog (who has which skills). Runs immediately (no confirmation).",
 				RuntimeTool: "joanne-read-skills", RequiredParams: []string{}, OptionalParams: []string{},
+			},
+			{
+				ID: "read-user", Label: "Read User", Description: "Show the message author's Stripe customer id (makeacompany Redis profile), Slack user id, and Slack workspace team id. Runs immediately (no confirmation).",
+				RuntimeTool: "joanne-read-user", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
 				ID: "read-twitter", Label: "Read Twitter", Description: "Search Twitter by keyword and fetch high-impression tweets (not the platform trend list).",
@@ -115,7 +116,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {},
 			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "read-skills", "create-company", "delete-company", "create-email", "create-doc"},
+			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc"},
 		},
 	}
 }
