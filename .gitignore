@@ -7,6 +7,4 @@
 .env.dev
 .env.prod
 
-# Air (docker compose local dev)
 tmp/
-build-errors.log

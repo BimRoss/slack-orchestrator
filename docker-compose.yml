@@ -1,6 +1,6 @@
 # Local dev: copy .env.example → .env.dev, fill Slack tokens + MULTIAGENT_BOT_USER_IDS.
 #
-# Hot reload: Air bind-mounts this repo at /src and rebuilds + restarts on .go saves (no manual restart).
+# Go services compile on each container start (bind-mount at /src). After edits: restart the service or `up --build`.
 #
 # Profile `local`: same split as prod — orchestrator is its own container; NATS + employee-factory workers
 # run separately (e.g. employee-factory `docker compose --profile local`, which publishes NATS on the host).
@@ -26,7 +26,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: ["air", "-c", ".air.toml"]
     restart: unless-stopped
     ports:
       - "${ORCHESTRATOR_PORT:-8080}:8080"

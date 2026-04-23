@@ -78,10 +78,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			},
 			{
 				ID: "create-company", Label: "Create Company", Description: "Start a company with just a name.",
-				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name", "founders"}, OptionalParams: []string{},
+				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name"}, OptionalParams: []string{"founders"},
 				ParamDefaults: map[string]string{
 					"name":     "Company / channel slug (gathered in-thread when not in the first message)",
-					"founders": "Message author (implicit default); the skill appends @mentioned cofounders",
+					"founders": "Optional; when omitted defaults to the message author plus any @mentioned cofounders",
 				},
 			},
 			{

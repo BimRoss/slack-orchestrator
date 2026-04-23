@@ -25,7 +25,7 @@ This matches **prod topology**: orchestrator is a separate process from **employ
 
 1. **`cp .env.example .env.dev`** and fill **`SLACK_BOT_TOKEN`** (or **`ORCHESTRATOR_SLACK_BOT_TOKEN`**), **`SLACK_APP_TOKEN`** (or **`ORCHESTRATOR_SLACK_APP_TOKEN`**), **`MULTIAGENT_BOT_USER_IDS`**, …  
 2. Start **employee-factory** NATS + workers first, then run **`docker compose --profile local up --build`** or **`make docker-up`**.  
-3. **`docker compose --profile local logs -f slack-orchestrator`** or **`make docker-logs`**.
+3. **`docker compose --profile local logs -f slack-orchestrator`** or **`make docker-logs`**. After Go edits, **`docker compose restart slack-orchestrator`** (or **`up --build`**) recompiles on start.
 
 Compose reads **`./.env.dev`** by default. Override file or port:  
 **`SLACK_ORCHESTRATOR_ENV_FILE=.env.prod ORCHESTRATOR_PORT=9090 docker compose --profile local up --build`**.
