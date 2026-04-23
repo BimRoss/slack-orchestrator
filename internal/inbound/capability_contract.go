@@ -86,7 +86,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			},
 			{
 				ID: "delete-company", Label: "Delete Company", Description: "Permanently delete a company Slack channel and remove app-owned Redis data for that workspace (frees the channel name). Requires explicit Confirm/Cancel before any write.",
-				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"channel"}, OptionalParams: []string{},
+				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"name"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
 					"channel": "The Slack channel where the command runs (implicit default; operators do not pass this at runtime)",
 				},
@@ -100,7 +100,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-read-skills", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-user", Label: "Read User", Description: "Show the message author's Stripe customer id (makeacompany Redis profile), Slack user id, and Slack workspace team id. Runs immediately (no confirmation).",
+				ID: "read-user", Label: "Read User", Description: "Show the message author's email, Slack user id, and Stripe customer id from the makeacompany Redis profile. Runs immediately (no confirmation).",
 				RuntimeTool: "joanne-read-user", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
@@ -115,7 +115,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		EmployeeSkillIDs: map[string][]string{
 			"alex":   {},
 			"tim":    {},
-			"ross":   {"read-user"},
+			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
 			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc"},
 		},
