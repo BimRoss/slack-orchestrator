@@ -54,7 +54,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		},
 		Skills: []CapabilitySkillV1{
 			{
-				ID: "create-email", Label: "Create Email", Description: "Draft, send, and triage email communication. Requires confirmation before send.",
+				ID: "create-email", Label: "Create Email", Description: "Design and send email, to one or a hundred. Bulk concurrency handled, HTML supported natively. Requires confirmation before send.",
 				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "to"},
 				OptionalParams: []string{"button", "link"},
 				ParamDefaults: map[string]string{
@@ -64,7 +64,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "create-doc", Label: "Create Doc", Description: "Create, edit, and organize working docs. Requires confirmation before publish.",
+				ID: "create-doc", Label: "Create Doc", Description: "Create Google documents, outlines, and game plans. Pair with search skills to produce research documents in seconds.",
 				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "editors"},
 				OptionalParams: []string{"commenters", "viewers", "type", "length"},
 				ParamDefaults: map[string]string{
@@ -77,7 +77,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "create-company", Label: "Create Company", Description: "Provision a company channel, run onboarding, create channels, and invite members. Requires confirmation before writes.",
+				ID: "create-company", Label: "Create Company", Description: "Start a company with just a name.",
 				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name", "founders"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
 					"name":     "Company / channel slug (gathered in-thread when not in the first message)",
@@ -85,30 +85,30 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "delete-company", Label: "Delete Company", Description: "Permanently delete a company Slack channel and remove app-owned Redis data for that workspace (frees the channel name). Requires explicit Confirm/Cancel before any write.",
+				ID: "delete-company", Label: "Delete Company", Description: "Removes a company and sends it to the archive. Requires confirmation.",
 				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"name"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
 					"channel": "The Slack channel where the command runs (implicit default; operators do not pass this at runtime)",
 				},
 			},
 			{
-				ID: "read-company", Label: "Read Company", Description: "Summarize this channel from cached Slack history (Redis digest). Runs immediately (no confirmation).",
+				ID: "read-company", Label: "Read Company", Description: "Summarize the latest activity within the company.",
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-skills", Label: "Read Skills", Description: "List team skills from the orchestrator capability catalog (who has which skills). Runs immediately (no confirmation).",
+				ID: "read-skills", Label: "Read Skills", Description: "Display the skills of the team",
 				RuntimeTool: "joanne-read-skills", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-user", Label: "Read User", Description: "Show the message author's email, Slack user id, and Stripe customer id from the makeacompany Redis profile. Runs immediately (no confirmation).",
+				ID: "read-user", Label: "Read User", Description: "Display a user's company card.",
 				RuntimeTool: "joanne-read-user", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-twitter", Label: "Read Twitter", Description: "Search Twitter by keyword and fetch high-impression tweets (not the platform trend list).",
+				ID: "read-twitter", Label: "Read Twitter", Description: "Search twitter for high-impression tweets on any topic",
 				RuntimeTool: "garth-read-twitter", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
 			},
 			{
-				ID: "read-trends", Label: "Read Trends", Description: "Fetch the current Twitter/X trend list (not keyword search).",
+				ID: "read-trends", Label: "Read Trends", Description: "Show the latest trends",
 				RuntimeTool: "garth-read-trends", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 		},
