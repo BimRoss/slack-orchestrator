@@ -66,11 +66,12 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			{
 				ID: "create-doc", Label: "Create Doc", Description: "Create, edit, and organize working docs. Requires confirmation before publish.",
 				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "editors"},
-				OptionalParams: []string{"commenters", "viewers", "type"},
+				OptionalParams: []string{"commenters", "viewers", "type", "length"},
 				ParamDefaults: map[string]string{
 					"title":      "Derived from intent when omitted; runtime infers a working title before draft",
 					"editors":    "Message author email (implicit default); append @mentions or explicit editor emails",
 					"type":       "outline",
+					"length":     "Defaults to one page when omitted",
 					"commenters": "none",
 					"viewers":    "none",
 				},
@@ -114,7 +115,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		EmployeeSkillIDs: map[string][]string{
 			"alex":   {},
 			"tim":    {},
-			"ross":   {},
+			"ross":   {"read-user"},
 			"garth":  {"read-twitter", "read-trends"},
 			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc"},
 		},
