@@ -55,6 +55,8 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 	effUser := effectiveMessageUser(ev)
 	effBot := effectiveBotID(ev)
 	effText := effectiveMessageText(ev)
+	imgIDs := messageEventImageFileIDs(ev)
+	routeText := routingTextForDispatch(effText, imgIDs)
 	effThread := effectiveThreadTS(ev)
 	logMessageIngress(outer, "message", ev.Channel, effThread, ev.TimeStamp, effUser, effBot, ev.SubType, ev.ChannelType, effText, topLevelTextEmpty(ev))
 
@@ -95,23 +97,24 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 			return
 		}
 	}
-	if effText == "" {
+	if routeText == "" {
 		logMessageDrop(outer, "message", "empty_text_after_trim", ev.Channel, effThread, ev.TimeStamp)
 		return
 	}
 	rc := routingDecideConfig(cfg)
-	if routing.HasOnlyNonSquadMentions(effText, rc.BotUserToKey) {
+	if routing.HasOnlyNonSquadMentions(routeText, rc.BotUserToKey) {
 		logMessageDrop(outer, "message", "human_to_human_mention", ev.Channel, effThread, ev.TimeStamp)
 		return
 	}
 	in := routing.Input{
-		ChannelID: ev.Channel,
-		ThreadTS:  effThread,
-		MessageTS: ev.TimeStamp,
-		UserID:    effUser,
-		Text:      effText,
+		ChannelID:         ev.Channel,
+		ThreadTS:          effThread,
+		MessageTS:         ev.TimeStamp,
+		UserID:            effUser,
+		Text:              routeText,
+		SlackImageFileIDs: imgIDs,
 	}
-	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(effText, rc)) == 0 {
+	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(routeText, rc)) == 0 {
 		routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		handoffKey, err := threadRoutingFetcher(routeCtx, ev.Channel, effThread, ev.TimeStamp)
 		cancel()
@@ -136,17 +139,19 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 	trim := strings.TrimSpace(ev.Text)
 	logMessageIngress(outer, "app_mention", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp, ev.User, ev.BotID, "", "", trim, trim == "")
 
-	text := strings.TrimSpace(ev.Text)
+	imgIDs := appMentionImageFileIDs(ev)
+	text := routingTextForDispatch(trim, imgIDs)
 	if text == "" {
 		logMessageDrop(outer, "app_mention", "empty_text_after_trim", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
 		return
 	}
 	in := routing.Input{
-		ChannelID: ev.Channel,
-		ThreadTS:  strings.TrimSpace(ev.ThreadTimeStamp),
-		MessageTS: ev.TimeStamp,
-		UserID:    ev.User,
-		Text:      text,
+		ChannelID:         ev.Channel,
+		ThreadTS:          strings.TrimSpace(ev.ThreadTimeStamp),
+		MessageTS:         ev.TimeStamp,
+		UserID:            ev.User,
+		Text:              text,
+		SlackImageFileIDs: imgIDs,
 	}
 	emitDecision(ctx, cfg, outer, in, "app_mention")
 }

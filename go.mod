@@ -1,12 +1,12 @@
 module github.com/bimross/slack-orchestrator
 
-go 1.23.0
+go 1.25
 
 require (
 	github.com/joho/godotenv v1.5.1
 	github.com/nats-io/nats.go v1.37.0
 	github.com/prometheus/client_golang v1.23.2
-	github.com/slack-go/slack v0.17.3
+	github.com/slack-go/slack v0.22.1-0.20260417211255-e3c0e8b15630
 )
 
 require (

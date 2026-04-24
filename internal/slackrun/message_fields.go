@@ -3,6 +3,7 @@ package slackrun
 import (
 	"strings"
 
+	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 )
 
@@ -71,4 +72,68 @@ func topLevelTextEmpty(ev *slackevents.MessageEvent) bool {
 		return true
 	}
 	return strings.TrimSpace(ev.Text) == ""
+}
+
+const orchestratorImageOnlyRoutingText = "(The user attached one or more images with no text.)"
+
+func isSlackImageFile(f slack.File) bool {
+	mt := strings.ToLower(strings.TrimSpace(f.Mimetype))
+	if strings.HasPrefix(mt, "image/") {
+		return true
+	}
+	ft := strings.ToLower(strings.TrimSpace(f.Filetype))
+	switch ft {
+	case "png", "jpg", "jpeg", "gif", "webp", "heic", "heif", "bmp", "tif", "tiff":
+		return true
+	default:
+		return false
+	}
+}
+
+func imageFileIDsFromFiles(files []slack.File, max int) []string {
+	if max <= 0 {
+		max = 8
+	}
+	var out []string
+	for _, f := range files {
+		if !isSlackImageFile(f) {
+			continue
+		}
+		id := strings.TrimSpace(f.ID)
+		if id == "" {
+			continue
+		}
+		out = append(out, id)
+		if len(out) >= max {
+			break
+		}
+	}
+	return out
+}
+
+func messageEventImageFileIDs(ev *slackevents.MessageEvent) []string {
+	if ev == nil || ev.Message == nil {
+		return nil
+	}
+	return imageFileIDsFromFiles(ev.Message.Files, 8)
+}
+
+func appMentionImageFileIDs(ev *slackevents.AppMentionEvent) []string {
+	if ev == nil {
+		return nil
+	}
+	return imageFileIDsFromFiles(ev.Files, 8)
+}
+
+// routingTextForDispatch returns text used for routing + NATS dispatch. When Slack sends no text but
+// image attachments are present, a neutral placeholder keeps Decide + JetStream payloads non-empty.
+func routingTextForDispatch(effText string, imageFileIDs []string) string {
+	t := strings.TrimSpace(effText)
+	if t != "" {
+		return t
+	}
+	if len(imageFileIDs) > 0 {
+		return orchestratorImageOnlyRoutingText
+	}
+	return ""
 }

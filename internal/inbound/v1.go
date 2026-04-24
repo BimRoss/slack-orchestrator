@@ -61,6 +61,9 @@ type MessageV1 struct {
 	MessageTS string `json:"message_ts"`
 	UserID    string `json:"user_id"`
 	Text      string `json:"text"`
+	// SlackImageFileIDs lists image file IDs attached to the triggering Slack message (Events API).
+	// Omitted on later pipeline steps (step index > 0) so downstream does not re-inject anchor images.
+	SlackImageFileIDs []string `json:"slack_image_file_ids,omitempty"`
 	// PipelineAnchorText is the full human message at the pipeline root (schema 4+); Text is step-scoped.
 	PipelineAnchorText string `json:"pipeline_anchor_text,omitempty"`
 }

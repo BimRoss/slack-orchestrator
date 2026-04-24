@@ -103,6 +103,10 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	if strings.EqualFold(strings.TrimSpace(d.ExecutionMode), routing.ExecutionModePipeline) && len(d.PipelineSteps) > 0 {
 		traceRun = newPipelineRunID()
 	}
+	slackImgIDs := in.SlackImageFileIDs
+	if strings.EqualFold(strings.TrimSpace(d.ExecutionMode), routing.ExecutionModePipeline) && d.PipelineStepIndex > 0 {
+		slackImgIDs = nil
+	}
 	payloadBase := inbound.EventV1{
 		SchemaVersion:  schemaVer,
 		TraceID:        traceRun,
@@ -120,6 +124,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			MessageTS:          in.MessageTS,
 			UserID:             in.UserID,
 			Text:               msgText,
+			SlackImageFileIDs:  slackImgIDs,
 			PipelineAnchorText: pipelineAnchor,
 		},
 		Capabilities: inbound.DefaultCapabilityContractJSON(),

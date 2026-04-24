@@ -64,6 +64,9 @@ type Input struct {
 	MessageTS string
 	UserID    string
 	Text      string
+	// SlackImageFileIDs are Slack file IDs for image attachments on this message (from Events API).
+	// Published on the JetStream envelope so workers can files.info + download with the bot token.
+	SlackImageFileIDs []string
 	// ThreadPlainHandoffKey is the last squad-bot @mention before this message in thread history
 	// (from conversations.replies). Empty when unknown or no prior squad mentions.
 	ThreadPlainHandoffKey string
