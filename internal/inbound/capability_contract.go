@@ -77,7 +77,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "create-company", Label: "Create Company", Description: "Start a company with just a name.",
+				ID: "create-company", Label: "Create Company", Description: "Start a private company channel from a name (slug); founders default to you plus @mentioned cofounders.",
 				RuntimeTool: "joanne-create-company", RequiredParams: []string{"name"}, OptionalParams: []string{"founders"},
 				ParamDefaults: map[string]string{
 					"name":     "Company / channel slug (gathered in-thread when not in the first message)",
