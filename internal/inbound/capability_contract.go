@@ -55,7 +55,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		Skills: []CapabilitySkillV1{
 			{
 				ID: "create-email", Label: "Create Email", Description: "Design and send email, to one or a hundred. Bulk concurrency handled, HTML supported natively. Requires confirmation before send.",
-				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "to"},
+				RuntimeTool: "joanne-create-email", RequiredParams: []string{"intent", "to", "subject"},
 				OptionalParams: []string{"button", "link"},
 				ParamDefaults: map[string]string{
 					"to":     "Message author (Slack profile; makeacompany slack→email index when configured)",
