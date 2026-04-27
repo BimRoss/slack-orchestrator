@@ -3,8 +3,10 @@ package dispatch
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bimross/slack-orchestrator/internal/config"
 	"github.com/bimross/slack-orchestrator/internal/inbound"
@@ -52,6 +54,136 @@ func (f *fakeJetStream) StreamInfo(_ string, _ ...nats.JSOpt) (*nats.StreamInfo,
 func (f *fakeJetStream) AddStream(_ *nats.StreamConfig, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
 	f.streamExists = true
 	return &nats.StreamInfo{}, nil
+}
+
+// flakyJetStream fails the first N Publish calls with ErrTimeout, then succeeds (for retry tests).
+type flakyJetStream struct {
+	streamExists     bool
+	published        []fakePublish
+	failuresBeforeOK int
+	publishCalls     int
+}
+
+func (f *flakyJetStream) Publish(subject string, data []byte, _ ...nats.PubOpt) (*nats.PubAck, error) {
+	f.publishCalls++
+	if f.publishCalls <= f.failuresBeforeOK {
+		return nil, nats.ErrTimeout
+	}
+	f.published = append(f.published, fakePublish{subject: subject, data: data})
+	return &nats.PubAck{Stream: "SLACK_WORK", Sequence: uint64(len(f.published))}, nil
+}
+
+func (f *flakyJetStream) StreamInfo(_ string, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
+	if !f.streamExists {
+		return nil, nats.ErrStreamNotFound
+	}
+	return &nats.StreamInfo{}, nil
+}
+
+func (f *flakyJetStream) AddStream(_ *nats.StreamConfig, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
+	f.streamExists = true
+	return &nats.StreamInfo{}, nil
+}
+
+func TestDecision_RetriesJetStreamPublishOnTransientErrors(t *testing.T) {
+	fake := &flakyJetStream{failuresBeforeOK: 2}
+	origJet := jetStreamContextFn
+	origEnsure := ensureStreamFn
+	origSleep := publishRetrySleep
+	jetStreamContextFn = func(_ config.Config) (jetStreamClient, error) { return fake, nil }
+	ensureStreamFn = ensureStream
+	publishRetrySleep = func(time.Duration) {}
+	t.Cleanup(func() {
+		jetStreamContextFn = origJet
+		ensureStreamFn = origEnsure
+		publishRetrySleep = origSleep
+	})
+
+	cfg := config.Config{
+		DispatchEnabled:            true,
+		NatsURL:                    "nats://stubbed",
+		NatsStream:                 "SLACK_WORK",
+		DispatchPublishMaxAttempts: 4,
+		DispatchPublishRetryBaseMS: 0,
+	}
+	outer := slackevents.EventsAPIEvent{
+		Data: &slackevents.EventsAPICallbackEvent{EventID: "EvRetry"},
+	}
+	in := routing.Input{ChannelID: "C1", MessageTS: "1.0", UserID: "U1", Text: "hi"}
+	d := routing.Decision{Employees: []string{"alex"}, Trigger: routing.TriggerPlain, Kind: routing.KindConversation}
+
+	results := Decision(context.Background(), cfg, outer, in, d, "message")
+	if len(results) != 1 || !results[0].OK {
+		t.Fatalf("expected 1 successful dispatch, got %+v", results)
+	}
+	if fake.publishCalls != 3 {
+		t.Fatalf("expected 3 publish attempts (2 timeouts + success), got %d", fake.publishCalls)
+	}
+	if len(fake.published) != 1 {
+		t.Fatalf("expected 1 published payload, got %d", len(fake.published))
+	}
+}
+
+func TestDecision_NoRetryOnNonTransientPublishError(t *testing.T) {
+	fake := &failOnceJetStream{}
+	origJet := jetStreamContextFn
+	origEnsure := ensureStreamFn
+	jetStreamContextFn = func(_ config.Config) (jetStreamClient, error) { return fake, nil }
+	ensureStreamFn = ensureStream
+	t.Cleanup(func() {
+		jetStreamContextFn = origJet
+		ensureStreamFn = origEnsure
+	})
+
+	cfg := config.Config{
+		DispatchEnabled:            true,
+		NatsURL:                    "nats://stubbed",
+		NatsStream:                 "SLACK_WORK",
+		DispatchPublishMaxAttempts: 5,
+		DispatchPublishRetryBaseMS: 0,
+	}
+	outer := slackevents.EventsAPIEvent{
+		Data: &slackevents.EventsAPICallbackEvent{EventID: "EvNoRetry"},
+	}
+	in := routing.Input{ChannelID: "C1", MessageTS: "1.0", UserID: "U1", Text: "hi"}
+	d := routing.Decision{Employees: []string{"alex"}, Trigger: routing.TriggerPlain, Kind: routing.KindConversation}
+
+	results := Decision(context.Background(), cfg, outer, in, d, "message")
+	if len(results) != 1 || results[0].OK {
+		t.Fatalf("expected 1 failed dispatch, got %+v", results)
+	}
+	if fake.publishCalls != 1 {
+		t.Fatalf("expected 1 publish attempt without retries, got %d", fake.publishCalls)
+	}
+}
+
+// failOnceJetStream always fails Publish with a non-retryable error.
+type failOnceJetStream struct {
+	streamExists bool
+	publishCalls int
+}
+
+func (f *failOnceJetStream) Publish(string, []byte, ...nats.PubOpt) (*nats.PubAck, error) {
+	f.publishCalls++
+	return nil, errors.New("jetstream: not retryable")
+}
+
+func (f *failOnceJetStream) StreamInfo(_ string, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
+	if !f.streamExists {
+		return nil, nats.ErrStreamNotFound
+	}
+	return &nats.StreamInfo{}, nil
+}
+
+func (f *failOnceJetStream) AddStream(_ *nats.StreamConfig, _ ...nats.JSOpt) (*nats.StreamInfo, error) {
+	f.streamExists = true
+	return &nats.StreamInfo{}, nil
+}
+
+func TestIsRetryableNatsPublishErr_WrappedTimeout(t *testing.T) {
+	if !isRetryableNatsPublishErr(errors.Join(nats.ErrTimeout)) {
+		t.Fatal("expected wrapped timeout to be retryable")
+	}
 }
 
 func TestDecision_MultiMentionToolFanoutPublishesPerEmployee(t *testing.T) {

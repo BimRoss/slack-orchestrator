@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,6 +32,8 @@ var (
 	// Test hooks (overridden in unit tests).
 	jetStreamContextFn = jetStreamContext
 	ensureStreamFn     = ensureStream
+	// publishRetrySleep is real time.Sleep in production; tests may replace with a no-op.
+	publishRetrySleep = func(d time.Duration) { time.Sleep(d) }
 )
 
 type jetStreamClient interface {
@@ -151,7 +154,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 
 		subject := fmt.Sprintf("slack.work.%s.events", emp)
 		start := time.Now()
-		if _, err := js.Publish(subject, body); err != nil {
+		if _, err := publishJetStreamWithRetries(js, subject, body, cfg); err != nil {
 			slog.Error("orchestrator_dispatch_publish", "error", err, "employee", emp, "subject", subject)
 			metrics.DelegatePublishSeconds.WithLabelValues("failure").Observe(time.Since(start).Seconds())
 			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
@@ -169,6 +172,62 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 		results = append(results, decisionlog.DispatchResult{Employee: emp, OK: true})
 	}
 	return results
+}
+
+func publishJetStreamWithRetries(js jetStreamClient, subject string, body []byte, cfg config.Config) (*nats.PubAck, error) {
+	max := cfg.DispatchPublishMaxAttempts
+	if max < 1 {
+		max = 3
+	}
+	if max > 10 {
+		max = 10
+	}
+	base := time.Duration(cfg.DispatchPublishRetryBaseMS) * time.Millisecond
+	var lastErr error
+	for attempt := 1; attempt <= max; attempt++ {
+		ack, err := js.Publish(subject, body)
+		if err == nil {
+			return ack, nil
+		}
+		lastErr = err
+		if attempt >= max || !isRetryableNatsPublishErr(err) {
+			break
+		}
+		metrics.DelegatePublishRetriesTotal.Inc()
+		backoff := base * time.Duration(uint(1)<<uint(attempt-1))
+		const maxBackoff = 2 * time.Second
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+		slog.Warn("orchestrator_dispatch_publish_retry",
+			"attempt", attempt,
+			"max_attempts", max,
+			"backoff_ms", backoff.Milliseconds(),
+			"error", err,
+			"subject", subject,
+		)
+		if backoff > 0 {
+			publishRetrySleep(backoff)
+		}
+	}
+	return nil, lastErr
+}
+
+func isRetryableNatsPublishErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, nats.ErrTimeout) ||
+		errors.Is(err, nats.ErrNoResponders) ||
+		errors.Is(err, nats.ErrDisconnected) ||
+		errors.Is(err, nats.ErrConnectionClosed) {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) && opErr.Timeout() {
+		return true
+	}
+	return false
 }
 
 func jetStreamContext(cfg config.Config) (jetStreamClient, error) {

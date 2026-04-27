@@ -48,7 +48,7 @@ Shortcuts: **`make env-dev`** / **`make env-prod`**, **`make run-dev`** / **`mak
 
 - `GET /health` — liveness  
 - `GET /readyz` — readiness  
-- `GET /metrics` — Prometheus (Socket Mode state, acks; JetStream delegate metrics when dispatch is enabled)
+- `GET /metrics` — Prometheus (Socket Mode state, acks, handler latency, nil-request counter; JetStream delegate metrics and publish retries when dispatch is enabled)
 - `GET /debug/capability-catalog` — full capability contract JSON (**same bytes** as NATS `capabilities` on dispatch). Auth matches `/debug/decisions`. Offline export: `go run ./cmd/catalog-export` → stdout.
 - `GET /debug/decisions?limit=100` — JSON decision log (last N **in-memory** entries on **this process only**). Bounded by **`ORCHESTRATOR_DECISION_LOG_MAX`** (default 500).
 
@@ -76,7 +76,7 @@ If you see **channel-root** traffic in logs but **never** `orchestrator_message_
 1. **Image** — Deployment image tag matches the Git / release you intended (Fleet or manual bump).  
 2. **Secrets** — `./scripts/update-rancher-secrets.sh` (or your namespace equivalent) applied so `slack-orchestrator-runtime` matches `.env` / `.env.example`.  
 3. **Probes** — `GET /health` and `GET /readyz` return 200.  
-4. **Metrics** — `GET /metrics` exposes `slack_orchestrator_socket_mode_state` and `slack_orchestrator_events_api_acked_total`.  
+4. **Metrics** — `GET /metrics` exposes `slack_orchestrator_socket_mode_state`, `slack_orchestrator_events_api_acked_total`, `slack_orchestrator_events_api_handle_seconds`, `slack_orchestrator_delegate_publish_retries_total` (when dispatch is on), and `slack_orchestrator_events_api_nil_request_total` (should stay near zero).  
 5. **Logs** — At least one line with `socket_mode` / `state` / `connected` after startup (reconnect storms should still show alternating connecting → connected).  
 6. **GitOps** — One line: Fleet repo revision applied; no need to poll pods here unless you are debugging.
 
@@ -92,7 +92,10 @@ Example **PromQL** (adjust job/namespace labels to your scrape config):
   `rate(slack_orchestrator_events_api_acked_total[5m])`
 - **Delegate dispatch (when JetStream dispatch is enabled):**  
   `rate(slack_orchestrator_delegate_publish_total[5m])`  
-  `histogram_quantile(0.95, sum(rate(slack_orchestrator_delegate_publish_seconds_bucket[5m])) by (le, result))`
+  `histogram_quantile(0.95, sum(rate(slack_orchestrator_delegate_publish_seconds_bucket[5m])) by (le, result))`  
+  `rate(slack_orchestrator_delegate_publish_retries_total[5m])` — transient publish retries (should be low vs successes)  
+- **Handler time after ack (backpressure / slow deps):**  
+  `histogram_quantile(0.95, sum(rate(slack_orchestrator_events_api_handle_seconds_bucket[5m])) by (le))`
 
 When **`ORCHESTRATOR_DISPATCH_ENABLED=true`** and **`ORCHESTRATOR_NATS_URL`** is set, the orchestrator publishes JSON (**`internal/inbound/v1`**) to **`slack.work.<employee>.events`** on stream **`ORCHESTRATOR_NATS_STREAM`** (default **`SLACK_WORK`**). Workers consume via **`NATS_URL`** (see **employee-factory**).
 
@@ -103,7 +106,7 @@ See [`.env.example`](.env.example). Important:
 - **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled**; the shuffle seed is **derived from the map** (optional `MULTIAGENT_SHUFFLE_SECRET` override only). Optional `MULTIAGENT_ORDER` overrides for emergencies.
 - `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
 - `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
-- **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_NATS_URL`, `ORCHESTRATOR_NATS_STREAM` (default `SLACK_WORK`).
+- **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_NATS_URL`, `ORCHESTRATOR_NATS_STREAM` (default `SLACK_WORK`). Optional **`ORCHESTRATOR_DISPATCH_PUBLISH_MAX_ATTEMPTS`** (default **3**, min **1**, max **10**) and **`ORCHESTRATOR_DISPATCH_PUBLISH_RETRY_BASE_MS`** (default **50**, cap **5000**) retry JetStream publishes on transient NATS errors with exponential backoff (capped at **2s**).
 - **Terms gate (optional)** — `ORCHESTRATOR_TERMS_REDIS_URL` points at the **same Redis** as **employee-factory** / **makeacompany-ai** profiles. When set, **human** `message` and `app_mention` events are dropped for routing (`humans_terms_not_accepted`) until `makeacompany:user_profile:<email>` has non-empty `humans_terms_accepted_at` for that Slack user (via `makeacompany:user_by_slack:<U…>`), matching **/admin → Slack Users**. Bot posts (including squad broadcast roots) are unchanged.
 - **Local Docker (`docker compose --profile local`)** — Compose sets a default URL `redis://host.docker.internal:${MAKEACOMPANY_AI_REDIS_PORT:-6380}/0` (same default Redis story as **employee-factory** workers). Put `ORCHESTRATOR_TERMS_REDIS_URL=` (empty) in **`.env.dev`** to disable the gate when Redis is not running on the host.
 - **Prod** — `rancher-admin` sets `ORCHESTRATOR_TERMS_REDIS_URL` on the Deployment (cluster Redis Service). The **`geeemoney/slack-orchestrator:*` image tag** is updated by **source-repo `v*` tag + CI `gitops-release`**; do not hand-bump tags in Fleet for routine rollouts.

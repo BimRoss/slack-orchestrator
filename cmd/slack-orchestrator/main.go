@@ -188,6 +188,7 @@ func main() {
 					continue
 				}
 				if evt.Request == nil {
+					metrics.EventsAPINilRequestTotal.Inc()
 					slog.Error("socket_mode_events_api_nil_request")
 					continue
 				}
@@ -198,7 +199,9 @@ func main() {
 					"slack_event_id", eventsAPIEventID(eventsAPI),
 					"team_id", strings.TrimSpace(eventsAPI.TeamID),
 				)
+				t0 := time.Now()
 				slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
+				metrics.EventsAPIHandleSeconds.Observe(time.Since(t0).Seconds())
 			case socketmode.EventTypeErrorBadMessage:
 				metrics.SocketModeBadMessageTotal.Inc()
 				cause := "unknown"

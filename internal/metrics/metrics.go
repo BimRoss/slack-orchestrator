@@ -29,6 +29,21 @@ var (
 		Help:      "Total Events API Socket Mode envelopes acknowledged",
 	})
 
+	// EventsAPINilRequestTotal counts Events API envelopes where Socket Mode provided no ack request (cannot ack).
+	EventsAPINilRequestTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "events_api_nil_request_total",
+		Help:      "Total Events API events dropped because evt.Request was nil (cannot Ack)",
+	})
+
+	// EventsAPIHandleSeconds observes slackrun.HandleEventsAPI latency after ack (per envelope).
+	EventsAPIHandleSeconds = promauto.NewHistogram(prometheus.HistogramOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "events_api_handle_seconds",
+		Help:      "Wall time spent in HandleEventsAPI per Events API envelope (after Ack)",
+		Buckets:   []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 15, 30},
+	})
+
 	// SocketModeBadMessageTotal counts WebSocket payloads that failed to parse (see logs for cause).
 	SocketModeBadMessageTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "slack_orchestrator",
@@ -48,6 +63,13 @@ var (
 		Namespace: "slack_orchestrator",
 		Name:      "delegate_publish_errors_total",
 		Help:      "Total JetStream publishes that failed",
+	})
+
+	// DelegatePublishRetriesTotal counts retry attempts after a failed JetStream publish (not the first try).
+	DelegatePublishRetriesTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "delegate_publish_retries_total",
+		Help:      "Total extra JetStream publish attempts after a transient failure (bounded backoff)",
 	})
 
 	// DelegatePublishSeconds observes JetStream publish latency when dispatch is enabled.

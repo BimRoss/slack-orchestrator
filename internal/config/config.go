@@ -23,6 +23,10 @@ type Config struct {
 	DispatchEnabled bool
 	NatsURL         string
 	NatsStream      string
+	// DispatchPublishMaxAttempts is JetStream publish tries per message (1 = no retry). Clamped 1–10 in FromEnv.
+	DispatchPublishMaxAttempts int
+	// DispatchPublishRetryBaseMS is the base backoff in milliseconds before the first retry (exponential: base, 2*base, …, cap 2s). Clamped 0–5000 in FromEnv.
+	DispatchPublishRetryBaseMS int
 
 	// TermsRedisURL is optional. When set, human message and app_mention routing requires non-empty
 	// humans_terms_accepted_at on makeacompany:user_profile (same Redis keys as /admin Slack Users).
@@ -75,6 +79,9 @@ func FromEnv() Config {
 		NatsStream:      strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_STREAM")),
 		TermsRedisURL:   strings.TrimSpace(os.Getenv("ORCHESTRATOR_TERMS_REDIS_URL")),
 
+		DispatchPublishMaxAttempts: getenvInt("ORCHESTRATOR_DISPATCH_PUBLISH_MAX_ATTEMPTS", 3),
+		DispatchPublishRetryBaseMS: getenvInt("ORCHESTRATOR_DISPATCH_PUBLISH_RETRY_BASE_MS", 50),
+
 		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
 		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", true),
 		DecisionLogMax: getenvInt("ORCHESTRATOR_DECISION_LOG_MAX", defaultDecisionLogMax),
@@ -84,6 +91,18 @@ func FromEnv() Config {
 	}
 	if cfg.NatsStream == "" {
 		cfg.NatsStream = "SLACK_WORK"
+	}
+	if cfg.DispatchPublishMaxAttempts < 1 {
+		cfg.DispatchPublishMaxAttempts = 1
+	}
+	if cfg.DispatchPublishMaxAttempts > 10 {
+		cfg.DispatchPublishMaxAttempts = 10
+	}
+	if cfg.DispatchPublishRetryBaseMS < 0 {
+		cfg.DispatchPublishRetryBaseMS = 0
+	}
+	if cfg.DispatchPublishRetryBaseMS > 5000 {
+		cfg.DispatchPublishRetryBaseMS = 5000
 	}
 	return cfg
 }
