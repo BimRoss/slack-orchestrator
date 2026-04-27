@@ -129,6 +129,7 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 			in.ThreadPlainHandoffKey = handoffKey
 		}
 	}
+	mergeThreadHandoffWithSkillPin(ctx, outer, cfg, effThread, &in)
 	if strings.TrimSpace(effBot) == "" {
 		if !posterMayUseOrchestratorRouting(ctx, effUser) {
 			logMessageDrop(outer, "message", "humans_terms_not_accepted", ev.Channel, effThread, ev.TimeStamp)
@@ -195,6 +196,7 @@ func routingDecideConfig(cfg config.Config) routing.DecideConfig {
 func emitDecision(ctx context.Context, cfg config.Config, outer slackevents.EventsAPIEvent, in routing.Input, innerType string) {
 	rc := routingDecideConfig(cfg)
 	d := routing.Decide(rc, in)
+	maybePersistThreadSkillPin(ctx, cfg, outer, in, d)
 	results := dispatch.Decision(ctx, cfg, outer, in, d, innerType)
 	note := dispatchNote(cfg, d)
 

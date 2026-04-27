@@ -22,6 +22,7 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
 	"github.com/bimross/slack-orchestrator/internal/termsredis"
+	"github.com/bimross/slack-orchestrator/internal/threadpin"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slack-go/slack"
@@ -72,6 +73,14 @@ func main() {
 			os.Exit(1)
 		}
 		defer func() { _ = chk.Close() }()
+		if pinStore, err := threadpin.NewStoreFromURL(u); err != nil {
+			slog.Warn("orchestrator_thread_pin_store_failed", "error", err, "msg", "thread skill follow-up pins disabled until Redis URL is fixed")
+			slackrun.SetThreadPinStore(nil)
+		} else {
+			defer func() { _ = pinStore.Close() }()
+			slackrun.SetThreadPinStore(pinStore)
+			slog.Info("orchestrator_thread_pin_store", "enabled", true, "msg", "mutating Tier-1 @mention kicks set a 7d thread pin for plain follow-ups when replies handoff is empty")
+		}
 		slackrun.SetHumansTermsAcceptFunc(func(ctx context.Context, uid string) bool {
 			ok, err := chk.HumansTermsAccepted(ctx, uid)
 			if err != nil {
@@ -83,6 +92,7 @@ func main() {
 		slog.Info("orchestrator_terms_enforcement", "enabled", true)
 	} else {
 		slackrun.SetHumansTermsAcceptFunc(nil)
+		slackrun.SetThreadPinStore(nil)
 		slog.Warn("orchestrator_terms_enforcement", "enabled", false, "msg", "set ORCHESTRATOR_TERMS_REDIS_URL to require Joanne #humans terms before routing human messages")
 	}
 	if cfg.BotToken == "" || cfg.AppToken == "" {
