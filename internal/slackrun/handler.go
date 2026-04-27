@@ -129,6 +129,20 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 			in.ThreadPlainHandoffKey = handoffKey
 		}
 	}
+	if strings.TrimSpace(effBot) == "" {
+		if !posterMayUseOrchestratorRouting(ctx, effUser) {
+			logMessageDrop(outer, "message", "humans_terms_not_accepted", ev.Channel, effThread, ev.TimeStamp)
+			slog.Info("orchestrator_message_drop_terms",
+				"slack_event_id", slackEventID(outer),
+				"inner_type", "message",
+				"user_id", strings.TrimSpace(effUser),
+				"channel_id", strings.TrimSpace(ev.Channel),
+				"thread_ts", strings.TrimSpace(effThread),
+				"message_ts", strings.TrimSpace(ev.TimeStamp),
+			)
+			return
+		}
+	}
 	emitDecision(ctx, cfg, outer, in, "message")
 }
 
@@ -143,6 +157,18 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 	text := routingTextForDispatch(trim, imgIDs)
 	if text == "" {
 		logMessageDrop(outer, "app_mention", "empty_text_after_trim", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
+		return
+	}
+	if !posterMayUseOrchestratorRouting(ctx, ev.User) {
+		logMessageDrop(outer, "app_mention", "humans_terms_not_accepted", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
+		slog.Info("orchestrator_message_drop_terms",
+			"slack_event_id", slackEventID(outer),
+			"inner_type", "app_mention",
+			"user_id", strings.TrimSpace(ev.User),
+			"channel_id", strings.TrimSpace(ev.Channel),
+			"thread_ts", strings.TrimSpace(ev.ThreadTimeStamp),
+			"message_ts", strings.TrimSpace(ev.TimeStamp),
+		)
 		return
 	}
 	in := routing.Input{

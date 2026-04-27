@@ -24,6 +24,10 @@ type Config struct {
 	NatsURL         string
 	NatsStream      string
 
+	// TermsRedisURL is optional. When set, human message and app_mention routing requires non-empty
+	// humans_terms_accepted_at on makeacompany:user_profile (same Redis keys as /admin Slack Users).
+	TermsRedisURL string
+
 	// DebugToken enables GET /debug/decisions (Bearer). Empty = endpoint disabled unless DebugAllowAnon.
 	DebugToken string
 	// DebugAllowAnon allows GET /debug/decisions without Authorization (operator convenience; lock down later).
@@ -69,6 +73,7 @@ func FromEnv() Config {
 		DispatchEnabled: parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
 		NatsURL:         strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_URL")),
 		NatsStream:      strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_STREAM")),
+		TermsRedisURL:   strings.TrimSpace(os.Getenv("ORCHESTRATOR_TERMS_REDIS_URL")),
 
 		DebugToken:     strings.TrimSpace(os.Getenv("ORCHESTRATOR_DEBUG_TOKEN")),
 		DebugAllowAnon: parseBoolEnv("ORCHESTRATOR_DEBUG_ALLOW_ANON", true),

@@ -104,6 +104,9 @@ See [`.env.example`](.env.example). Important:
 - `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
 - `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
 - **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_NATS_URL`, `ORCHESTRATOR_NATS_STREAM` (default `SLACK_WORK`).
+- **Terms gate (optional)** — `ORCHESTRATOR_TERMS_REDIS_URL` points at the **same Redis** as **employee-factory** / **makeacompany-ai** profiles. When set, **human** `message` and `app_mention` events are dropped for routing (`humans_terms_not_accepted`) until `makeacompany:user_profile:<email>` has non-empty `humans_terms_accepted_at` for that Slack user (via `makeacompany:user_by_slack:<U…>`), matching **/admin → Slack Users**. Bot posts (including squad broadcast roots) are unchanged.
+- **Local Docker (`docker compose --profile local`)** — Compose sets a default URL `redis://host.docker.internal:${MAKEACOMPANY_AI_REDIS_PORT:-6380}/0` (same default Redis story as **employee-factory** workers). Put `ORCHESTRATOR_TERMS_REDIS_URL=` (empty) in **`.env.dev`** to disable the gate when Redis is not running on the host.
+- **Prod** — `rancher-admin` sets `ORCHESTRATOR_TERMS_REDIS_URL` on the Deployment (cluster Redis Service). The **`geeemoney/slack-orchestrator:*` image tag** is updated by **source-repo `v*` tag + CI `gitops-release`**; do not hand-bump tags in Fleet for routine rollouts.
 
 ## Docker
 

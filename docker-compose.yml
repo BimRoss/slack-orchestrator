@@ -15,6 +15,11 @@
 # Default NATS URL: nats://host.docker.internal:${NATS_PORT:-4222} (matches employee-factory NATS_PORT).
 # Linux: extra_hosts below maps host.docker.internal → host gateway.
 #
+# Terms gate (same Redis as employee-factory default REDIS_URL / makeacompany profiles): enabled by default for
+# profile `local` via ORCHESTRATOR_TERMS_REDIS_URL below. To turn off, set in .env.dev:
+#   ORCHESTRATOR_TERMS_REDIS_URL=
+# (empty value keeps the key set so the compose default is not applied.)
+#
 # Same Docker network as NATS (e.g. compose merge): override
 #   ORCHESTRATOR_NATS_URL=nats://nats:4222 docker compose --profile local up --build
 #
@@ -36,6 +41,8 @@ services:
       # env_file may contain k8s-style URLs; this default targets host-published NATS (split local stack).
       ORCHESTRATOR_NATS_URL: ${ORCHESTRATOR_NATS_URL:-nats://host.docker.internal:${NATS_PORT:-4222}}
       ORCHESTRATOR_DISPATCH_ENABLED: ${ORCHESTRATOR_DISPATCH_ENABLED:-true}
+      # Single-hyphen form: default only when unset; empty ORCHESTRATOR_TERMS_REDIS_URL= in .env.dev disables gate.
+      ORCHESTRATOR_TERMS_REDIS_URL: ${ORCHESTRATOR_TERMS_REDIS_URL-redis://host.docker.internal:${MAKEACOMPANY_AI_REDIS_PORT:-6380}/0}
     volumes:
       - type: bind
         source: .

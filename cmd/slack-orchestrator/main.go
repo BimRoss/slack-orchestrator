@@ -21,6 +21,7 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/metrics"
 	"github.com/bimross/slack-orchestrator/internal/routing"
 	"github.com/bimross/slack-orchestrator/internal/slackrun"
+	"github.com/bimross/slack-orchestrator/internal/termsredis"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slack-go/slack"
@@ -63,6 +64,26 @@ func main() {
 
 	if len(cfg.MultiagentOrder) == 0 {
 		slog.Warn("multiagent_roster_empty", "msg", "set MULTIAGENT_BOT_USER_IDS (roster is derived and shuffled) or optional MULTIAGENT_ORDER override")
+	}
+	if u := strings.TrimSpace(cfg.TermsRedisURL); u != "" {
+		chk, err := termsredis.NewCheckerFromURL(u)
+		if err != nil {
+			slog.Error("orchestrator_terms_redis_init_failed", "error", err)
+			os.Exit(1)
+		}
+		defer func() { _ = chk.Close() }()
+		slackrun.SetHumansTermsAcceptFunc(func(ctx context.Context, uid string) bool {
+			ok, err := chk.HumansTermsAccepted(ctx, uid)
+			if err != nil {
+				slog.Warn("orchestrator_terms_redis_query_failed", "error", err, "slack_user_id", strings.TrimSpace(uid))
+				return false
+			}
+			return ok
+		})
+		slog.Info("orchestrator_terms_enforcement", "enabled", true)
+	} else {
+		slackrun.SetHumansTermsAcceptFunc(nil)
+		slog.Warn("orchestrator_terms_enforcement", "enabled", false, "msg", "set ORCHESTRATOR_TERMS_REDIS_URL to require Joanne #humans terms before routing human messages")
 	}
 	if cfg.BotToken == "" || cfg.AppToken == "" {
 		slog.Warn("slack_tokens_missing", "msg", "set SLACK_BOT_TOKEN and SLACK_APP_TOKEN to enable Socket Mode")
