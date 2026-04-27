@@ -268,6 +268,9 @@ func SquadMentionsFromText(text string, cfg DecideConfig) []string {
 // Employee-factory posts this pattern for capability delegation (e.g. Tim sends @Joanne with the
 // operator's text). Without an exception, slack-orchestrator drops every message with bot_id before
 // NATS dispatch, so the specialist never runs.
+//
+// Product note: the mention must be a real Slack token (<@U…>), not a display name; use exactly one
+// other-squad <@> on delegating bot posts (see README “Squad bot posts and cross-bot delegation”).
 func SquadBotMentionsOtherSquadMember(cfg DecideConfig, postingUserID, text string) bool {
 	postingUserID = strings.TrimSpace(postingUserID)
 	if postingUserID == "" || len(cfg.BotUserToKey) == 0 {

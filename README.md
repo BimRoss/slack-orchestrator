@@ -17,6 +17,16 @@ Inbound NATS payload uses **`schema_version: 3`** or **`4`** (`internal/inbound/
 
 Ambiguous or non-tool text maps to **`conversation`** (no “missing tool” user errors at this layer).
 
+### Squad bot posts and cross-bot delegation
+
+Messages authored by a **configured squad bot** (non-empty `bot_id`) are normally **dropped** before NATS dispatch so bots cannot spam the fleet. There is a narrow exception: **`SquadBotMentionsOtherSquadMember`** in [`internal/routing/decide.go`](internal/routing/decide.go) returns true when the posting user id maps to a squad bot **and** the message text contains a Slack user mention **`<@U…>`** of a **different** squad bot. Plain text like “Garth, …” does **not** satisfy this gate.
+
+For **Tim → Garth** style handoffs in a thread, the delegating bot’s message should include **exactly one** real Slack mention token for the next worker (e.g. `<@UGARTH…>`). **Do not** put **two or more** distinct squad **`<@>`** mentions on the **same** bot-authored line: `Decide` treats that pattern as roster-style copy and routes the message **only back to the posting bot** (see the `len(mentioned) >= 2` branch in [`internal/routing/decide.go`](internal/routing/decide.go) around the squad-bot poster check).
+
+Plain thread follow-ups with **no** squad `<@>` in the text still use **`ThreadPlainHandoffKey`** (last squad mention earlier in the thread) — see [`internal/slackrun/handler.go`](internal/slackrun/handler.go).
+
+Worker-side, **employee-factory** preserves one deliberate cross-squad `<@UID>` on outbound posts when using delegation formatting (`FormatOutgoingWithSquadPeerTokenDemote` + `EnforceMentionPolicy` with `preserveFirstCrossSquadSlackMention`); see that repo’s docs.
+
 ## Run locally
 
 ### Docker (profile `local`)
