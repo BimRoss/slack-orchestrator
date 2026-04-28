@@ -44,6 +44,20 @@ var (
 		Buckets:   []float64{0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 15, 30},
 	})
 
+	// EventsAPIQueuedTotal counts Events API envelopes enqueued for async routing/dispatch workers.
+	EventsAPIQueuedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "events_api_queued_total",
+		Help:      "Total Events API envelopes accepted into the async processing queue",
+	})
+
+	// EventsAPIQueueDepth is the current buffered queue depth for async Events API processing.
+	EventsAPIQueueDepth = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "slack_orchestrator",
+		Name:      "events_api_queue_depth",
+		Help:      "Current queued Events API envelopes waiting for async processing",
+	})
+
 	// SocketModeBadMessageTotal counts WebSocket payloads that failed to parse (see logs for cause).
 	SocketModeBadMessageTotal = promauto.NewCounter(prometheus.CounterOpts{
 		Namespace: "slack_orchestrator",

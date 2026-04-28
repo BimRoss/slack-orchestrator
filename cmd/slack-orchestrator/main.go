@@ -152,6 +152,23 @@ func main() {
 		slog.Info("socket_mode_ping_interval_override", "seconds", cfg.SocketPingSec)
 	}
 	client := socketmode.New(api, smOpts...)
+	eventsAPIQueue := make(chan slackevents.EventsAPIEvent, cfg.EventsAPIQueueSize)
+	for i := 0; i < cfg.EventsAPIWorkers; i++ {
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case eventsAPI := <-eventsAPIQueue:
+					t0 := time.Now()
+					slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
+					metrics.EventsAPIHandleSeconds.Observe(time.Since(t0).Seconds())
+					metrics.EventsAPIQueueDepth.Set(float64(len(eventsAPIQueue)))
+				}
+			}
+		}()
+	}
+	metrics.EventsAPIQueueDepth.Set(0)
 
 	go func() {
 		for evt := range client.Events {
@@ -211,9 +228,9 @@ func main() {
 					"slack_event_id", eventsAPIEventID(eventsAPI),
 					"team_id", strings.TrimSpace(eventsAPI.TeamID),
 				)
-				t0 := time.Now()
-				slackrun.HandleEventsAPI(ctx, cfg, eventsAPI)
-				metrics.EventsAPIHandleSeconds.Observe(time.Since(t0).Seconds())
+				eventsAPIQueue <- eventsAPI
+				metrics.EventsAPIQueuedTotal.Inc()
+				metrics.EventsAPIQueueDepth.Set(float64(len(eventsAPIQueue)))
 			case socketmode.EventTypeErrorBadMessage:
 				metrics.SocketModeBadMessageTotal.Inc()
 				cause := "unknown"

@@ -13,6 +13,8 @@ type Config struct {
 	AppToken        string
 	SocketModeDebug bool
 	SocketPingSec   int
+	EventsAPIWorkers int
+	EventsAPIQueueSize int
 	ShuffleSecret   string
 	MultiagentOrder []string
 	BotUserToKey    map[string]string // Slack bot user ID -> employee key (alex, tim, …)
@@ -68,6 +70,8 @@ func FromEnv() Config {
 		)),
 		SocketModeDebug: parseBoolEnv("SOCKET_MODE_DEBUG", false),
 		SocketPingSec:   getenvInt("SOCKET_MODE_PING_INTERVAL_SEC", 0),
+		EventsAPIWorkers: getenvInt("ORCHESTRATOR_EVENTS_API_WORKERS", 8),
+		EventsAPIQueueSize: getenvInt("ORCHESTRATOR_EVENTS_API_QUEUE_SIZE", 256),
 		ShuffleSecret:   shuffle,
 		MultiagentOrder: order,
 		BotUserToKey:    botMap,
@@ -103,6 +107,12 @@ func FromEnv() Config {
 	}
 	if cfg.DispatchPublishRetryBaseMS > 5000 {
 		cfg.DispatchPublishRetryBaseMS = 5000
+	}
+	if cfg.EventsAPIWorkers < 1 {
+		cfg.EventsAPIWorkers = 1
+	}
+	if cfg.EventsAPIQueueSize < 1 {
+		cfg.EventsAPIQueueSize = 1
 	}
 	return cfg
 }
