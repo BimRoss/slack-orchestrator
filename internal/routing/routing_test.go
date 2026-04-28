@@ -600,3 +600,92 @@ func TestHasOnlyNonSquadMentions(t *testing.T) {
 		t.Fatal("did not expect true for text without mentions")
 	}
 }
+
+func TestIsCreateCompanySlackPostConfirmationText(t *testing.T) {
+	epilogue := "Created: <#C0ABC|acme>\nInvited: <@UH1>, <@UALEX>"
+	if !IsCreateCompanySlackPostConfirmationText(epilogue) {
+		t.Fatal("expected create-company epilogue shape")
+	}
+	if IsCreateCompanySlackPostConfirmationText("Created: only first line") {
+		t.Fatal("did not expect without Invited line")
+	}
+	if IsCreateCompanySlackPostConfirmationText("note\nInvited: x") {
+		t.Fatal("did not expect without Created: prefix")
+	}
+}
+
+func TestLastSquadHandoffKey_SkipsCreateCompanyConfirmationRoot(t *testing.T) {
+	cfg := DecideConfig{
+		BotUserToKey: map[string]string{"UALEX": "alex", "UJOANNE": "joanne"},
+	}
+	msgs := []ThreadMessage{
+		{Timestamp: "1.0", Text: "Created: <#C1|x>\nInvited: <@UALEX>, <@UJOANNE>"},
+	}
+	if got := LastSquadHandoffKey(msgs, "1.0", cfg); got != "" {
+		t.Fatalf("create-company confirmation root must not pin a squad handoff; got %q", got)
+	}
+}
+
+func TestDecide_PlainThreadUnderCreateCompanyConfirmRoot_NoEmployees(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UALEX": "alex"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:      "CHUMANS",
+		ThreadTS:       "100.0",
+		MessageTS:      "100.1",
+		Text:           "thanks!",
+		ThreadRootText: "Created: <#CNEW|co>\nInvited: <@UH>, <@UALEX>",
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 0 {
+		t.Fatalf("want no squad dispatch under create-confirm thread; got %+v", d)
+	}
+}
+
+func TestDecide_CreateCompanyEpilogue_FromSquadBot_NoDispatchEvenWithOneSquadMention(t *testing.T) {
+	// Regresses: Invited: lists humans + orchestrator (no BotUserToKey) + Alex → |mentioned|==["alex"] only;
+	// Alex must not get a spurious "mention" route for Joanne's status post.
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UJOANNE": "joanne", "UALEX": "alex"},
+		ShuffleSecret: "secret",
+	}
+	epilogue := "Created: <#CNEW|co>\nInvited: <@UHUMAN>, <@UORCH>, <@UALEX>"
+	in := Input{
+		ChannelID: "CHUMANS",
+		ThreadTS:  "100.0",
+		MessageTS: "100.1",
+		UserID:    "UJOANNE",
+		Text:      epilogue,
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 0 {
+		t.Fatalf("want no dispatch for create-company epilogue from squad bot; got %+v", d)
+	}
+}
+
+func TestDecide_ExplicitMentionInThreadUnderCreateCompanyConfirmRoot_StillRoutes(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UALEX": "alex"},
+		EveryoneLimit: 5,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:      "CHUMANS",
+		ThreadTS:       "100.0",
+		MessageTS:      "100.1",
+		Text:           "<@UALEX> can you help?",
+		ThreadRootText: "Created: <#CNEW|co>\nInvited: <@UH>, <@UALEX>",
+	}
+	d := Decide(cfg, in)
+	if len(d.Employees) != 1 || d.Employees[0] != "alex" || d.Trigger != TriggerMention {
+		t.Fatalf("want explicit mention routing; got %+v", d)
+	}
+}

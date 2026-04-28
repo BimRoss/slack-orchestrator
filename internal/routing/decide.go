@@ -70,6 +70,9 @@ type Input struct {
 	// ThreadPlainHandoffKey is the last squad-bot @mention before this message in thread history
 	// (from conversations.replies). Empty when unknown or no prior squad mentions.
 	ThreadPlainHandoffKey string
+	// ThreadRootText is the Slack text of the thread parent (empty for top-level messages). Used to
+	// suppress automated squad replies on plain follow-ups under Joanne’s create-company confirmation.
+	ThreadRootText string
 }
 
 // Decide returns routing for a channel message. Priority: broadcast → explicit squad mention → plain.
@@ -99,6 +102,15 @@ func Decide(cfg DecideConfig, in Input) Decision {
 
 	mentioned := mentionedEmployeeKeys(text, cfg.BotUserToKey, cfg.Order)
 	if len(mentioned) > 0 {
+		// Joanne posts the create-company epilogue: "Created:…\nInvited: <@U…>, …" with <@U…> for humans,
+		// orchestrator, and squad. Many of those tokens do not map to BotUserToKey, so |mentioned| is often
+		// 1 (e.g. only Alex) and the len(mentioned)>=2 roster guard below does not run—Alex would still
+		// be routed. This line is a status roster, not a handoff: do not dispatch any squad.
+		if IsCreateCompanySlackPostConfirmationText(text) {
+			if _, ok := cfg.BotUserToKey[strings.TrimSpace(in.UserID)]; ok {
+				return Decision{}
+			}
+		}
 		// A squad bot posted text that @mentions two or more other squad bots. That pattern is used for
 		// participant rosters (e.g. Joanne create-company confirmation), not Tim→Joanne delegation
 		// (typically a single <@specialist> in the text). Pipeline / multi-target routing would otherwise
@@ -167,6 +179,13 @@ func Decide(cfg DecideConfig, in Input) Decision {
 				Kind:      KindConversation,
 			})
 		}
+	}
+
+	// Plain reply in a thread under Joanne’s "Created: … / Invited: …" post: do not route to any squad
+	// agent (the Invited line is a roster, not a conversation kickoff). Explicit @mentions in the
+	// reply are handled above. When thread routing is disabled, ThreadRootText is empty and this is a no-op.
+	if strings.TrimSpace(in.ThreadTS) != "" && len(mentioned) == 0 && IsCreateCompanySlackPostConfirmationText(in.ThreadRootText) {
+		return Decision{}
 	}
 
 	// Plain message → one responder: first agent after the same shuffle as @here/@channel multi-agent

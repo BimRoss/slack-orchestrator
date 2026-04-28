@@ -104,7 +104,7 @@ func main() {
 
 	// Socket Mode requires the app-level token on the API client (apps.connections.open).
 	api := slack.New(cfg.BotToken, slack.OptionAppLevelToken(cfg.AppToken))
-	slackrun.SetThreadRoutingFetcher(func(ctx context.Context, channelID, threadTS, currentMessageTS string) (string, error) {
+	slackrun.SetThreadRoutingFetcher(func(ctx context.Context, channelID, threadTS, currentMessageTS string) (string, string, error) {
 		msgs, _, _, err := api.GetConversationRepliesContext(ctx, &slack.GetConversationRepliesParameters{
 			ChannelID: channelID,
 			Timestamp: threadTS,
@@ -112,11 +112,13 @@ func main() {
 			Inclusive: true,
 		})
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		if len(msgs) == 0 {
-			return "", fmt.Errorf("conversations.replies: empty thread")
+			return "", "", fmt.Errorf("conversations.replies: empty thread")
 		}
+		// API returns the thread parent as the first message in the array.
+		rootText := strings.TrimSpace(msgs[0].Text)
 		var threadMsgs []routing.ThreadMessage
 		for i := range msgs {
 			ts := strings.TrimSpace(msgs[i].Timestamp)
@@ -137,7 +139,7 @@ func main() {
 			ChannelLimit:  cfg.ChannelLimit,
 			ShuffleSecret: cfg.ShuffleSecret,
 		}
-		return routing.LastSquadHandoffKey(threadMsgs, threadTS, rc), nil
+		return routing.LastSquadHandoffKey(threadMsgs, threadTS, rc), rootText, nil
 	})
 	var smOpts []socketmode.Option
 	if cfg.SocketModeDebug {

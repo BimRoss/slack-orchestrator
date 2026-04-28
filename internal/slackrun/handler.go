@@ -116,7 +116,7 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 	}
 	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(routeText, rc)) == 0 {
 		routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		handoffKey, err := threadRoutingFetcher(routeCtx, ev.Channel, effThread, ev.TimeStamp)
+		handoffKey, rootText, err := threadRoutingFetcher(routeCtx, ev.Channel, effThread, ev.TimeStamp)
 		cancel()
 		if err != nil {
 			slog.Warn("orchestrator_thread_routing_fetch_failed",
@@ -127,6 +127,7 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 			)
 		} else {
 			in.ThreadPlainHandoffKey = handoffKey
+			in.ThreadRootText = rootText
 		}
 	}
 	mergeThreadHandoffWithSkillPin(ctx, outer, cfg, effThread, &in)
