@@ -73,10 +73,22 @@ type Input struct {
 	// ThreadRootText is the Slack text of the thread parent (empty for top-level messages). Used to
 	// suppress automated squad replies on plain follow-ups under Joanne’s create-company confirmation.
 	ThreadRootText string
+	// PreAcceptanceTermsBypass is set by slackrun when the poster has not stored #humans terms
+	// acceptance but the text matches UpdateTermsIntentText. Decide must route only to Joanne as
+	// the update-terms tool (the sole allowed agent turn before acceptance).
+	PreAcceptanceTermsBypass bool
 }
 
 // Decide returns routing for a channel message. Priority: broadcast → explicit squad mention → plain.
 func Decide(cfg DecideConfig, in Input) Decision {
+	if in.PreAcceptanceTermsBypass {
+		return withSingleMeta(Decision{
+			Trigger:   TriggerPlain,
+			Employees: []string{"joanne"},
+			Kind:      KindTool,
+			ToolID:    "update-terms",
+		})
+	}
 	text := strings.TrimSpace(in.Text)
 	bc := ClassifyBroadcastTrigger(text)
 	switch bc {

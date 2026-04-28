@@ -29,6 +29,7 @@ var tier1PatternEntries = []struct {
 	{"read-user", "read-user"},
 	{"read-twitter", "read-twitter"},
 	{"read-trends", "read-trends"},
+	{"update-terms", "update-terms"},
 }
 
 var tier1ToolPatterns []tier1Pattern

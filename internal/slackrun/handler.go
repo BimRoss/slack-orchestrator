@@ -132,7 +132,8 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 	}
 	mergeThreadHandoffWithSkillPin(ctx, outer, cfg, effThread, &in)
 	if strings.TrimSpace(effBot) == "" {
-		if !posterMayUseOrchestratorRouting(ctx, effUser) {
+		allow, preBypass := termsEnforcementOutcome(ctx, effUser, routeText)
+		if !allow {
 			logMessageDrop(outer, "message", "humans_terms_not_accepted", ev.Channel, effThread, ev.TimeStamp)
 			slog.Info("orchestrator_message_drop_terms",
 				"slack_event_id", slackEventID(outer),
@@ -143,6 +144,9 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 				"message_ts", strings.TrimSpace(ev.TimeStamp),
 			)
 			return
+		}
+		if preBypass {
+			in.PreAcceptanceTermsBypass = true
 		}
 	}
 	emitDecision(ctx, cfg, outer, in, "message")
@@ -161,7 +165,8 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 		logMessageDrop(outer, "app_mention", "empty_text_after_trim", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
 		return
 	}
-	if !posterMayUseOrchestratorRouting(ctx, ev.User) {
+	allow, preBypass := termsEnforcementOutcome(ctx, ev.User, text)
+	if !allow {
 		logMessageDrop(outer, "app_mention", "humans_terms_not_accepted", ev.Channel, ev.ThreadTimeStamp, ev.TimeStamp)
 		slog.Info("orchestrator_message_drop_terms",
 			"slack_event_id", slackEventID(outer),
@@ -180,6 +185,9 @@ func handleAppMention(ctx context.Context, cfg config.Config, outer slackevents.
 		UserID:            ev.User,
 		Text:              text,
 		SlackImageFileIDs: imgIDs,
+	}
+	if preBypass {
+		in.PreAcceptanceTermsBypass = true
 	}
 	emitDecision(ctx, cfg, outer, in, "app_mention")
 }

@@ -111,13 +111,17 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				ID: "read-trends", Label: "Read Trends", Description: "Show the latest trends",
 				RuntimeTool: "garth-read-trends", RequiredParams: []string{}, OptionalParams: []string{},
 			},
+			{
+				ID: "update-terms", Label: "Update Terms", Description: "Show platform terms of use; record I Agree / I Do Not Agree on the operator profile (same confirm control as #humans onboarding).",
+				RuntimeTool: "joanne-update-terms", RequiredParams: []string{}, OptionalParams: []string{},
+			},
 		},
 		EmployeeSkillIDs: map[string][]string{
 			"alex":   {},
 			"tim":    {},
 			"ross":   {},
 			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc"},
+			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
 }
