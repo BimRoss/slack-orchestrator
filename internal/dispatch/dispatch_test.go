@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -294,6 +295,53 @@ func TestDecision_DedupesDuplicateEmployeesBeforePublish(t *testing.T) {
 	}
 	if !gotSubjects["slack.work.ross.events"] || !gotSubjects["slack.work.joanne.events"] {
 		t.Fatalf("unexpected deduped subjects: %+v", gotSubjects)
+	}
+}
+
+func TestDecision_EnsuresStreamOnlyOncePerStreamName(t *testing.T) {
+	fake := &fakeJetStream{}
+	origJet := jetStreamContextFn
+	origEnsure := ensureStreamFn
+	streamEnsureMu.Lock()
+	origCache := streamEnsureSuccess
+	streamEnsureSuccess = map[string]bool{}
+	streamEnsureMu.Unlock()
+	var ensureCalls int
+	var ensureMu sync.Mutex
+	jetStreamContextFn = func(_ config.Config) (jetStreamClient, error) { return fake, nil }
+	ensureStreamFn = func(js jetStreamClient, name string) error {
+		ensureMu.Lock()
+		ensureCalls++
+		ensureMu.Unlock()
+		return ensureStream(js, name)
+	}
+	t.Cleanup(func() {
+		jetStreamContextFn = origJet
+		ensureStreamFn = origEnsure
+		streamEnsureMu.Lock()
+		streamEnsureSuccess = origCache
+		streamEnsureMu.Unlock()
+	})
+
+	cfg := config.Config{
+		DispatchEnabled: true,
+		NatsURL:         "nats://stubbed",
+		NatsStream:      "SLACK_WORK",
+	}
+	outer := slackevents.EventsAPIEvent{
+		Data: &slackevents.EventsAPICallbackEvent{EventID: "EvEnsureOnce"},
+	}
+	in := routing.Input{ChannelID: "C1", MessageTS: "1.0", UserID: "U1", Text: "hi"}
+	d := routing.Decision{Employees: []string{"alex"}, Trigger: routing.TriggerPlain, Kind: routing.KindConversation}
+
+	_ = Decision(context.Background(), cfg, outer, in, d, "message")
+	_ = Decision(context.Background(), cfg, outer, in, d, "message")
+
+	ensureMu.Lock()
+	got := ensureCalls
+	ensureMu.Unlock()
+	if got != 1 {
+		t.Fatalf("ensureStreamFn called %d times; want 1", got)
 	}
 }
 

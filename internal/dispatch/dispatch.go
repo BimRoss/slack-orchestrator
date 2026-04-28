@@ -28,6 +28,8 @@ var (
 	jsConn    *nats.Conn
 	jsCtx     jetStreamClient
 	jsURLUsed string
+	streamEnsureMu      sync.Mutex
+	streamEnsureSuccess = map[string]bool{}
 
 	// Test hooks (overridden in unit tests).
 	jetStreamContextFn = jetStreamContext
@@ -73,7 +75,7 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 	if stream == "" {
 		stream = "SLACK_WORK"
 	}
-	if err := ensureStreamFn(js, stream); err != nil {
+	if err := ensureStreamOnce(js, stream); err != nil {
 		slog.Error("orchestrator_dispatch_stream", "error", err)
 		for range d.Employees {
 			metrics.DelegatePublishTotal.WithLabelValues("failure").Inc()
@@ -282,6 +284,26 @@ func ensureStream(js jetStreamClient, name string) error {
 	if err != nil {
 		return fmt.Errorf("add stream %q: %w", name, err)
 	}
+	return nil
+}
+
+func ensureStreamOnce(js jetStreamClient, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return fmt.Errorf("empty stream name")
+	}
+	streamEnsureMu.Lock()
+	already := streamEnsureSuccess[name]
+	streamEnsureMu.Unlock()
+	if already {
+		return nil
+	}
+	if err := ensureStreamFn(js, name); err != nil {
+		return err
+	}
+	streamEnsureMu.Lock()
+	streamEnsureSuccess[name] = true
+	streamEnsureMu.Unlock()
 	return nil
 }
 
