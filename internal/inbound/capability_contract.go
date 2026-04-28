@@ -1,6 +1,12 @@
 package inbound
 
-import "encoding/json"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"strings"
+	"sync"
+)
 
 // CapabilityContractV1 is the JSON shape of the runtime capability catalog. The concrete default
 // (DefaultCapabilityContractV1) is authored in this repo as the product source of truth for dispatch;
@@ -33,12 +39,20 @@ type CapabilitySkillV1 struct {
 
 // DefaultCapabilityContractJSON returns JSON bytes for the default BimRoss squad contract (canonical here).
 func DefaultCapabilityContractJSON() json.RawMessage {
-	c := DefaultCapabilityContractV1()
-	raw, err := json.Marshal(c)
-	if err != nil {
-		return nil
-	}
-	return raw
+	raw, _, _ := defaultContractCached()
+	return append(json.RawMessage(nil), raw...)
+}
+
+// DefaultCapabilityContractRevision returns the revision tag for the default capability contract.
+func DefaultCapabilityContractRevision() string {
+	_, revision, _ := defaultContractCached()
+	return revision
+}
+
+// DefaultCapabilityContractDigest returns a stable short hash of the default contract JSON bytes.
+func DefaultCapabilityContractDigest() string {
+	_, _, digest := defaultContractCached()
+	return digest
 }
 
 // DefaultCapabilityContractV1 returns the hardcoded squad + skill matrix (revision "default").
@@ -128,4 +142,25 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
+}
+
+var (
+	defaultContractOnce     sync.Once
+	defaultContractJSON     json.RawMessage
+	defaultContractRevision string
+	defaultContractDigest   string
+)
+
+func defaultContractCached() (json.RawMessage, string, string) {
+	defaultContractOnce.Do(func() {
+		c := DefaultCapabilityContractV1()
+		defaultContractRevision = strings.TrimSpace(c.Revision)
+		raw, err := json.Marshal(c)
+		if err == nil {
+			defaultContractJSON = raw
+			sum := sha256.Sum256(raw)
+			defaultContractDigest = hex.EncodeToString(sum[:8])
+		}
+	})
+	return defaultContractJSON, defaultContractRevision, defaultContractDigest
 }

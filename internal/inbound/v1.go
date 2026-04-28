@@ -52,6 +52,10 @@ type EventV1 struct {
 	// Capabilities is the full runtime capability catalog (JSON). Workers use this instead of
 	// fetching makeacompany when present (schema_version 3+).
 	Capabilities json.RawMessage `json:"capabilities,omitempty"`
+	// CapabilityRevision identifies the capabilities payload version so workers can cache by revision.
+	CapabilityRevision string `json:"capability_revision,omitempty"`
+	// CapabilityDigest is a stable short hash of the capability payload bytes for integrity/debug checks.
+	CapabilityDigest string `json:"capability_digest,omitempty"`
 }
 
 // MessageV1 is normalized text-bearing payload for message / app_mention paths.

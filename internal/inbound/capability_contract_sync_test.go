@@ -1,6 +1,8 @@
 package inbound
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"slices"
 	"testing"
@@ -26,5 +28,22 @@ func TestDefaultCapabilityContractJSONMatchesStruct(t *testing.T) {
 	}
 	if !slices.Equal(skillIDsFromContract(c1), skillIDsFromContract(&c2)) {
 		t.Fatalf("json roundtrip: struct skill ids != unmarshaled json")
+	}
+}
+
+func TestDefaultCapabilityContractMetadataMatchesPayload(t *testing.T) {
+	t.Parallel()
+
+	raw := DefaultCapabilityContractJSON()
+	if len(raw) == 0 {
+		t.Fatal("expected non-empty default capability contract json")
+	}
+	if got, want := DefaultCapabilityContractRevision(), "default"; got != want {
+		t.Fatalf("revision: got %q want %q", got, want)
+	}
+	sum := sha256.Sum256(raw)
+	wantDigest := hex.EncodeToString(sum[:8])
+	if got := DefaultCapabilityContractDigest(); got != wantDigest {
+		t.Fatalf("digest: got %q want %q", got, wantDigest)
 	}
 }

@@ -132,7 +132,9 @@ func Decision(ctx context.Context, cfg config.Config, outer slackevents.EventsAP
 			SlackImageFileIDs:  slackImgIDs,
 			PipelineAnchorText: pipelineAnchor,
 		},
-		Capabilities: inbound.DefaultCapabilityContractJSON(),
+		Capabilities:       inbound.DefaultCapabilityContractJSON(),
+		CapabilityRevision: inbound.DefaultCapabilityContractRevision(),
+		CapabilityDigest:   inbound.DefaultCapabilityContractDigest(),
 	}
 
 	seen := make(map[string]bool, len(d.Employees))
