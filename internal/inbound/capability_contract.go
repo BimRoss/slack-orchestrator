@@ -96,6 +96,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
+				ID: "read-google", Label: "Read Google", Description: "Search Google for current events and external references.",
+				RuntimeTool: "joanne-read-google", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
+			},
+			{
 				ID: "read-skills", Label: "Read Skills", Description: "Display the skills of the team",
 				RuntimeTool: "joanne-read-skills", RequiredParams: []string{}, OptionalParams: []string{},
 			},
@@ -117,11 +121,11 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			},
 		},
 		EmployeeSkillIDs: map[string][]string{
-			"alex":   {},
-			"tim":    {},
-			"ross":   {},
-			"garth":  {"read-twitter", "read-trends"},
-			"joanne": {"read-company", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
+			"alex":   {"read-google"},
+			"tim":    {"read-google"},
+			"ross":   {"read-google"},
+			"garth":  {"read-twitter", "read-trends", "read-google"},
+			"joanne": {"read-company", "read-google", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
 }
