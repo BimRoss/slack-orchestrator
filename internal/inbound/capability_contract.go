@@ -96,8 +96,8 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-google", Label: "Read Google", Description: "Search Google for current events and external references.",
-				RuntimeTool: "joanne-read-google", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
+				ID: "read-internet", Label: "Read Internet", Description: "Search the public web (internet) for current events and external references.",
+				RuntimeTool: "joanne-read-internet", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
 			},
 			{
 				ID: "read-skills", Label: "Read Skills", Description: "Display the skills of the team",
@@ -121,11 +121,11 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			},
 		},
 		EmployeeSkillIDs: map[string][]string{
-			"alex":   {"read-google"},
-			"tim":    {"read-google"},
-			"ross":   {"read-google"},
-			"garth":  {"read-twitter", "read-trends", "read-google"},
-			"joanne": {"read-company", "read-google", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
+			"alex":   {"read-internet"},
+			"tim":    {"read-internet"},
+			"ross":   {"read-internet"},
+			"garth":  {"read-twitter", "read-trends", "read-internet"},
+			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
 }
