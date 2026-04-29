@@ -1,5 +1,5 @@
-// Package memberchannels serves GET /debug/member-channels — Slack channels the orchestrator bot is in
-// (users.conversations), matching channel-knowledge discovery.
+// Package memberchannels serves Slack channels the orchestrator bot is in (users.conversations),
+// matching channel-knowledge discovery.
 package memberchannels
 
 import (
@@ -14,6 +14,41 @@ import (
 )
 
 const maxChannels = 500
+
+func serveMemberChannels(w http.ResponseWriter, r *http.Request, botToken string) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if botToken == "" {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":   "slack_bot_token_missing",
+			"message": "Set SLACK_BOT_TOKEN (or ORCHESTRATOR_SLACK_BOT_TOKEN) on slack-orchestrator.",
+		})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
+	defer cancel()
+	api := slack.New(botToken)
+	channels, truncated, err := listMemberChannels(ctx, api)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadGateway)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":   "slack_api_error",
+			"message": err.Error(),
+		})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"schema_version": 1,
+		"channels":       channels,
+		"truncated":      truncated,
+	})
+}
 
 // HTTPHandler serves GET /debug/member-channels. Auth matches decisionlog (/debug/decisions).
 func HTTPHandler(botToken string, token string, allowAnon bool) http.HandlerFunc {
@@ -36,34 +71,15 @@ func HTTPHandler(botToken string, token string, allowAnon bool) http.HandlerFunc
 				return
 			}
 		}
-		if botToken == "" {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"error":   "slack_bot_token_missing",
-				"message": "Set SLACK_BOT_TOKEN (or ORCHESTRATOR_SLACK_BOT_TOKEN) on slack-orchestrator.",
-			})
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
-		defer cancel()
-		api := slack.New(botToken)
-		channels, truncated, err := listMemberChannels(ctx, api)
-		if err != nil {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(http.StatusBadGateway)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"error":   "slack_api_error",
-				"message": err.Error(),
-			})
-			return
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"schema_version": 1,
-			"channels":       channels,
-			"truncated":      truncated,
-		})
+		serveMemberChannels(w, r, botToken)
+	}
+}
+
+// PublicHTTPHandler serves GET /v1/public/member-channels without debug auth checks.
+func PublicHTTPHandler(botToken string) http.HandlerFunc {
+	botToken = strings.TrimSpace(botToken)
+	return func(w http.ResponseWriter, r *http.Request) {
+		serveMemberChannels(w, r, botToken)
 	}
 }
 

@@ -53,7 +53,8 @@ func main() {
 	mux.HandleFunc("/debug/decisions", decisionlog.HTTPHandler(logStore, cfg.DebugToken, cfg.DebugAllowAnon))
 	mux.HandleFunc("/debug/member-channels", memberchannels.HTTPHandler(cfg.BotToken, cfg.DebugToken, cfg.DebugAllowAnon))
 	mux.HandleFunc("/debug/channel-members", channelmembers.HTTPHandler(cfg.BotToken, cfg.DebugToken, cfg.DebugAllowAnon))
-	mux.HandleFunc("/debug/capability-catalog", catalogdebug.HTTPHandler(cfg.DebugToken, cfg.DebugAllowAnon))
+	mux.HandleFunc("/v1/public/member-channels", memberchannels.PublicHTTPHandler(cfg.BotToken))
+	mux.HandleFunc("/v1/public/channel-members", channelmembers.PublicHTTPHandler(cfg.BotToken))
 	mux.HandleFunc("/v1/public/capability-catalog", catalogdebug.PublicHTTPHandler())
 	srv := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	go func() {
