@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"slices"
 	"testing"
+
+	"github.com/bimross/slack-orchestrator/internal/contractsync"
 )
 
 func TestDefaultCapabilityContractSkillIDsMatchStruct(t *testing.T) {
@@ -45,5 +47,15 @@ func TestDefaultCapabilityContractMetadataMatchesPayload(t *testing.T) {
 	wantDigest := hex.EncodeToString(sum[:8])
 	if got := DefaultCapabilityContractDigest(); got != wantDigest {
 		t.Fatalf("digest: got %q want %q", got, wantDigest)
+	}
+}
+
+func TestDefaultCapabilityContractSkillIDsMatchGeneratedContract(t *testing.T) {
+	t.Parallel()
+
+	got := DefaultCapabilityContractSkillIDs()
+	want := append([]string(nil), contractsync.GeneratedSkillIDs...)
+	if !slices.Equal(got, want) {
+		t.Fatalf("generated contract drift: got %v want %v", got, want)
 	}
 }

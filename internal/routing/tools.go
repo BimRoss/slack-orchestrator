@@ -13,10 +13,12 @@ import (
 //
 // Match only when the user explicitly names the tool: "read-company", "read company",
 // "read_company", etc. Substrings like "onboard" or "search twitter for …" do not match.
-var tier1PatternEntries = []struct {
-	patternID   string
-	canonicalID string
-}{
+type Tier1PatternEntry struct {
+	PatternID   string
+	CanonicalID string
+}
+
+var tier1PatternEntries = []Tier1PatternEntry{
 	{"create-email", "create-email"},
 	{"write-email", "create-email"},
 	{"create-doc", "create-doc"},
@@ -34,13 +36,20 @@ var tier1PatternEntries = []struct {
 	{"update-terms", "update-terms"},
 }
 
+// Tier1PatternEntries returns a copy of raw Tier-1 aliases/pattern bindings.
+func Tier1PatternEntries() []Tier1PatternEntry {
+	out := make([]Tier1PatternEntry, len(tier1PatternEntries))
+	copy(out, tier1PatternEntries)
+	return out
+}
+
 var tier1ToolPatterns []tier1Pattern
 
 // Tier1CanonicalSkillIDs returns sorted unique canonical skill IDs bound in [tier1PatternEntries].
 func Tier1CanonicalSkillIDs() []string {
 	seen := map[string]struct{}{}
 	for _, e := range tier1PatternEntries {
-		id := strings.TrimSpace(e.canonicalID)
+		id := strings.TrimSpace(e.CanonicalID)
 		if id == "" {
 			continue
 		}
@@ -62,10 +71,16 @@ type tier1Pattern struct {
 var reSlackAngleTokens = regexp.MustCompile(`<[@#][^>]*>`)
 
 func init() {
-	entries := append([]struct {
+	entries := make([]struct {
 		patternID   string
 		canonicalID string
-	}(nil), tier1PatternEntries...)
+	}, 0, len(tier1PatternEntries))
+	for _, entry := range tier1PatternEntries {
+		entries = append(entries, struct {
+			patternID   string
+			canonicalID string
+		}{patternID: entry.PatternID, canonicalID: entry.CanonicalID})
+	}
 	sort.SliceStable(entries, func(i, j int) bool {
 		if len(entries[i].patternID) != len(entries[j].patternID) {
 			return len(entries[i].patternID) > len(entries[j].patternID)
