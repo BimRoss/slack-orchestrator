@@ -25,6 +25,8 @@ var tier1PatternEntries = []Tier1PatternEntry{
 	{"write-doc", "create-doc"},
 	{"create-company", "create-company"},
 	{"write-company", "create-company"},
+	{"create-connect", "create-connect"},
+	{"write-connect", "create-connect"},
 	{"delete-company", "delete-company"},
 	{"read-company", "read-company"},
 	{"read-internet", "read-internet"},

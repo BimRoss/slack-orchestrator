@@ -99,6 +99,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
+				ID: "create-connect", Label: "Create Connect", Description: "Generate a Slack Connect setup link for the current company channel. No confirm/cancel flow.",
+				RuntimeTool: "joanne-create-connect", RequiredParams: []string{}, OptionalParams: []string{},
+			},
+			{
 				ID: "delete-company", Label: "Delete Company", Description: "Removes a company and sends it to the archive. Requires confirmation.",
 				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"name"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
@@ -139,7 +143,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {"read-internet"},
 			"ross":   {"read-internet"},
 			"garth":  {"read-twitter", "read-trends", "read-internet"},
-			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "delete-company", "create-email", "create-doc", "update-terms"},
+			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
 }

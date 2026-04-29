@@ -5,12 +5,13 @@ const GeneratedRevision = "default"
 
 var GeneratedEmployeeIDs = []string{"alex", "garth", "joanne", "ross", "tim"}
 
-var GeneratedSkillIDs = []string{"create-company", "create-doc", "create-email", "delete-company", "read-company", "read-internet", "read-skills", "read-trends", "read-twitter", "read-user", "update-terms"}
+var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "delete-company", "read-company", "read-internet", "read-skills", "read-trends", "read-twitter", "read-user", "update-terms"}
 
 type Tier1Alias struct { PatternID string; CanonicalID string }
 
 var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "create-company", CanonicalID: "create-company"},
+	{PatternID: "create-connect", CanonicalID: "create-connect"},
 	{PatternID: "create-doc", CanonicalID: "create-doc"},
 	{PatternID: "create-email", CanonicalID: "create-email"},
 	{PatternID: "delete-company", CanonicalID: "delete-company"},
@@ -23,6 +24,7 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "read-user", CanonicalID: "read-user"},
 	{PatternID: "update-terms", CanonicalID: "update-terms"},
 	{PatternID: "write-company", CanonicalID: "create-company"},
+	{PatternID: "write-connect", CanonicalID: "create-connect"},
 	{PatternID: "write-doc", CanonicalID: "create-doc"},
 	{PatternID: "write-email", CanonicalID: "create-email"},
 }
