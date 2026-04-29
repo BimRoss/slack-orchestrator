@@ -8,6 +8,11 @@ import (
 	"github.com/bimross/slack-orchestrator/internal/inbound"
 )
 
+func writeCatalogResponse(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_, _ = w.Write(inbound.DefaultCapabilityContractJSON())
+}
+
 // HTTPHandler serves GET /debug/capability-catalog. Auth matches decisionlog (/debug/decisions).
 func HTTPHandler(token string, allowAnon bool) http.HandlerFunc {
 	token = strings.TrimSpace(token)
@@ -28,7 +33,18 @@ func HTTPHandler(token string, allowAnon bool) http.HandlerFunc {
 				return
 			}
 		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		_, _ = w.Write(inbound.DefaultCapabilityContractJSON())
+		writeCatalogResponse(w)
+	}
+}
+
+// PublicHTTPHandler serves GET /v1/public/capability-catalog without debug auth requirements.
+// This is the stable in-cluster source-of-truth endpoint for catalog consumers.
+func PublicHTTPHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeCatalogResponse(w)
 	}
 }

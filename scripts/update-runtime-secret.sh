@@ -72,6 +72,14 @@ RUNTIME_KEYS=(
   ORCHESTRATOR_DECISION_LOG_MAX
 )
 
+DEBUG_ALLOW_ANON_EFFECTIVE="${ORCHESTRATOR_DEBUG_ALLOW_ANON:-}"
+DEBUG_ALLOW_ANON_EFFECTIVE="$(printf "%s" "${DEBUG_ALLOW_ANON_EFFECTIVE}" | tr '[:upper:]' '[:lower:]')"
+if [[ "${DEBUG_ALLOW_ANON_EFFECTIVE}" != "true" && -z "${ORCHESTRATOR_DEBUG_TOKEN:-}" ]]; then
+  echo "ORCHESTRATOR_DEBUG_ALLOW_ANON is false (or unset) but ORCHESTRATOR_DEBUG_TOKEN is missing in ${ENV_FILE}." >&2
+  echo "Set ORCHESTRATOR_DEBUG_TOKEN so /debug/capability-catalog stays available to trusted in-cluster clients." >&2
+  exit 1
+fi
+
 secret_args=()
 for key in "${RUNTIME_KEYS[@]}"; do
   val=""
