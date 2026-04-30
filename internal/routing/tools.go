@@ -53,7 +53,6 @@ var tier1PatternEntries = []Tier1PatternEntry{
 	{"delete-company", "delete-company"},
 	{"read-company", "read-company"},
 	{"read-web", "read-web"},
-	{"read-google", "read-web"},
 	{"read-skills", "read-skills"},
 	{"read-user", "read-user"},
 	{"read-twitter", "read-twitter"},
