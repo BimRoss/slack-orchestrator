@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -34,6 +35,10 @@ func main() {
 	_ = godotenv.Load()
 	cfg := config.FromEnv()
 	logging.Init()
+	var socketConnected atomic.Bool
+	var socketReadyReason atomic.Value
+	socketConnected.Store(false)
+	socketReadyReason.Store("socket_not_connected")
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -44,8 +49,13 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, _ *http.Request) {
+		if !socketConnected.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(strings.TrimSpace(socketReadyReason.Load().(string)) + "\n"))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok:socket_connected\n"))
 	})
 	mux.Handle("/metrics", promhttp.Handler())
 	logStore := decisionlog.New(cfg.DecisionLogMax)
@@ -177,12 +187,18 @@ func main() {
 			switch evt.Type {
 			case socketmode.EventTypeConnecting:
 				metrics.SocketModeState.Set(metrics.SocketStateConnecting)
+				socketConnected.Store(false)
+				socketReadyReason.Store("socket_connecting")
 				slog.Info("socket_mode", "state", "connecting")
 			case socketmode.EventTypeConnectionError:
 				metrics.SocketModeState.Set(metrics.SocketStateConnectionError)
+				socketConnected.Store(false)
+				socketReadyReason.Store("socket_connection_error")
 				slog.Warn("socket_mode", "state", "connection_error")
 			case socketmode.EventTypeConnected:
 				metrics.SocketModeState.Set(metrics.SocketStateConnected)
+				socketConnected.Store(true)
+				socketReadyReason.Store("socket_connected")
 				slog.Info("socket_mode", "state", "connected")
 			case socketmode.EventTypeHello:
 				if evt.Request != nil {
@@ -198,6 +214,8 @@ func main() {
 				}
 			case socketmode.EventTypeDisconnect:
 				metrics.SocketModeState.Set(metrics.SocketStateDisconnected)
+				socketConnected.Store(false)
+				socketReadyReason.Store("socket_disconnected")
 				if evt.Request != nil {
 					slog.Info("socket_mode_disconnect",
 						"reason", evt.Request.Reason,
@@ -247,6 +265,8 @@ func main() {
 					slog.Warn("socket_mode_incoming_error")
 				}
 			case socketmode.EventTypeInvalidAuth:
+				socketConnected.Store(false)
+				socketReadyReason.Store("socket_invalid_auth")
 				slog.Error("socket_mode_invalid_auth_check_app_token")
 			default:
 				// Ack other interactive events if needed

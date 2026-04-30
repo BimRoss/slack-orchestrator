@@ -123,11 +123,9 @@ func Decide(cfg DecideConfig, in Input) Decision {
 				return Decision{}
 			}
 		}
-		// A squad bot posted text that @mentions two or more other squad bots. That pattern is used for
-		// participant rosters (e.g. Joanne create-company confirmation), not Tim→Joanne delegation
-		// (typically a single <@specialist> in the text). Pipeline / multi-target routing would otherwise
-		// deliver the message to the first listed bot (e.g. Alex) and trigger spurious replies.
-		if posterKey, ok := cfg.BotUserToKey[strings.TrimSpace(in.UserID)]; ok && posterKey != "" && len(mentioned) >= 2 {
+		// Guard roster/status posts from squad bots ("Participants: <@...>, <@...>") so they do not
+		// fan out into multi-agent chat. Directed callouts in normal prose still route by mention.
+		if posterKey, ok := cfg.BotUserToKey[strings.TrimSpace(in.UserID)]; ok && posterKey != "" && len(mentioned) >= 2 && looksLikeParticipantRosterText(text) {
 			toolID, k := ClassifyToolOrConversation(text)
 			if k == KindTool && toolID != "" {
 				return withSingleMeta(Decision{
@@ -428,4 +426,9 @@ func pickPlainResponder(messageTS string, order []string, secret string) string 
 		return ""
 	}
 	return shuffled[0]
+}
+
+func looksLikeParticipantRosterText(text string) bool {
+	lower := strings.ToLower(strings.TrimSpace(text))
+	return strings.Contains(lower, "participants:") || strings.Contains(lower, "\nparticipants:")
 }
