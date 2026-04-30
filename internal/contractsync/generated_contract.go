@@ -33,7 +33,6 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "read-an-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-company", CanonicalID: "read-company"},
 	{PatternID: "read-google", CanonicalID: "read-web"},
-	{PatternID: "read-internet", CanonicalID: "read-web"},
 	{PatternID: "read-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-issues", CanonicalID: "read-issue"},
 	{PatternID: "read-skills", CanonicalID: "read-skills"},

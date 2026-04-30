@@ -13,7 +13,7 @@ func TestClassifyToolOrConversation_ExplicitTier1(t *testing.T) {
 		{"read_company", "read-company", KindTool},
 		{"Read Company", "read-company", KindTool},
 		{"read-web", "read-web", KindTool},
-		{"read internet", "read-web", KindTool},
+		{"read internet", "", KindConversation},
 		{"read_web", "read-web", KindTool},
 		{"read-google", "read-web", KindTool},
 		{"read google", "read-web", KindTool},

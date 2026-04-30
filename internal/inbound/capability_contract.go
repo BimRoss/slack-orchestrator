@@ -171,7 +171,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"ross":   {"read-web", "create-issue", "read-issue", "update-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-web"},
 			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
-			"anna":   {"create-image"},
+			"anna":   {"create-image", "read-web"},
 		},
 	}
 }
