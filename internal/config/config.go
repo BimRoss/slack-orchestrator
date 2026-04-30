@@ -8,18 +8,18 @@ import (
 
 // Config holds runtime settings loaded from the environment.
 type Config struct {
-	HTTPAddr        string
-	BotToken        string
-	AppToken        string
-	SocketModeDebug bool
-	SocketPingSec   int
-	EventsAPIWorkers int
+	HTTPAddr           string
+	BotToken           string
+	AppToken           string
+	SocketModeDebug    bool
+	SocketPingSec      int
+	EventsAPIWorkers   int
 	EventsAPIQueueSize int
-	ShuffleSecret   string
-	MultiagentOrder []string
-	BotUserToKey    map[string]string // Slack bot user ID -> employee key (alex, tim, …)
-	EveryoneLimit   int
-	ChannelLimit    int
+	ShuffleSecret      string
+	MultiagentOrder    []string
+	BotUserToKey       map[string]string // Slack bot user ID -> employee key (alex, tim, …)
+	EveryoneLimit      int
+	ChannelLimit       int
 
 	// DispatchEnabled publishes routing decisions to NATS JetStream (per-employee subjects).
 	DispatchEnabled bool
@@ -44,7 +44,7 @@ type Config struct {
 
 const (
 	defaultHTTPAddr      = ":8080"
-	defaultEveryoneLimit = 5
+	defaultEveryoneLimit = 3
 	defaultChannelLimit  = 3
 )
 
@@ -68,15 +68,15 @@ func FromEnv() Config {
 			os.Getenv("SLACK_APP_TOKEN"),
 			os.Getenv("ORCHESTRATOR_SLACK_APP_TOKEN"),
 		)),
-		SocketModeDebug: parseBoolEnv("SOCKET_MODE_DEBUG", false),
-		SocketPingSec:   getenvInt("SOCKET_MODE_PING_INTERVAL_SEC", 0),
-		EventsAPIWorkers: getenvInt("ORCHESTRATOR_EVENTS_API_WORKERS", 8),
+		SocketModeDebug:    parseBoolEnv("SOCKET_MODE_DEBUG", false),
+		SocketPingSec:      getenvInt("SOCKET_MODE_PING_INTERVAL_SEC", 0),
+		EventsAPIWorkers:   getenvInt("ORCHESTRATOR_EVENTS_API_WORKERS", 8),
 		EventsAPIQueueSize: getenvInt("ORCHESTRATOR_EVENTS_API_QUEUE_SIZE", 256),
-		ShuffleSecret:   shuffle,
-		MultiagentOrder: order,
-		BotUserToKey:    botMap,
-		EveryoneLimit:   getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
-		ChannelLimit:    getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
+		ShuffleSecret:      shuffle,
+		MultiagentOrder:    order,
+		BotUserToKey:       botMap,
+		EveryoneLimit:      getenvInt("EVERYONE_AGENT_LIMIT", defaultEveryoneLimit),
+		ChannelLimit:       getenvInt("CHANNEL_AGENT_LIMIT", defaultChannelLimit),
 
 		DispatchEnabled: parseBoolEnv("ORCHESTRATOR_DISPATCH_ENABLED", false),
 		NatsURL:         strings.TrimSpace(os.Getenv("ORCHESTRATOR_NATS_URL")),

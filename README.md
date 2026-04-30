@@ -6,7 +6,7 @@ Single **Socket Mode** ingress for BimRoss Slack: receives `message.*`, `app_men
 
 | Trigger | Behavior |
 |--------|----------|
-| `<!everyone>` / `@everyone` | First **N** in the **resolved roster** (default **5**) — `conversation` |
+| `<!everyone>` / `@everyone` / `<!here>` / `@here` | First **N** in the **resolved roster** (default **3**) — `conversation` |
 | `<!channel>` / `@channel` | First **N** in that roster (default **3**) — `conversation` |
 | Squad `@mention` (one bot) | That employee; `tool` vs `conversation` from keyword classifier |
 | Squad `@mention` (**two or more** distinct squad bots) | **`execution_mode: pipeline`**: ordered **`pipeline_steps`** (text split by mention positions in the message); **single** JetStream publish to the **first** step’s employee (`schema_version: 4`). Further steps are published by the worker after each step completes. |
@@ -115,7 +115,7 @@ See [`.env.example`](.env.example). Important:
 
 - **Roster** — derived from keys in `MULTIAGENT_BOT_USER_IDS`, sorted, then **shuffled**; the shuffle seed is **derived from the map** (optional `MULTIAGENT_SHUFFLE_SECRET` override only). Optional `MULTIAGENT_ORDER` overrides for emergencies.
 - `MULTIAGENT_BOT_USER_IDS` — `alex=Uxxx,tim=Uyyy` so `<@U>` mentions resolve to an employee and the squad list is known.
-- `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **5** and **3**.
+- `EVERYONE_AGENT_LIMIT` / `CHANNEL_AGENT_LIMIT` — default **3** and **3**.
 - `ORCHESTRATOR_EVENTS_API_WORKERS` / `ORCHESTRATOR_EVENTS_API_QUEUE_SIZE` — bounded async handler pool for Events API ingestion (defaults **8** workers, **256** queue; min **1** each).
 - **Dispatch (optional)** — `ORCHESTRATOR_DISPATCH_ENABLED`, `ORCHESTRATOR_NATS_URL`, `ORCHESTRATOR_NATS_STREAM` (default `SLACK_WORK`). Optional **`ORCHESTRATOR_DISPATCH_PUBLISH_MAX_ATTEMPTS`** (default **3**, min **1**, max **10**) and **`ORCHESTRATOR_DISPATCH_PUBLISH_RETRY_BASE_MS`** (default **50**, cap **5000**) retry JetStream publishes on transient NATS errors with exponential backoff (capped at **2s**).
 - **Terms gate (optional)** — `ORCHESTRATOR_TERMS_REDIS_URL` points at the **same Redis** as **employee-factory** / **makeacompany-ai** profiles. When set, **human** `message` and `app_mention` events are dropped for routing (`humans_terms_not_accepted`) until `makeacompany:user_profile:<email>` has non-empty `humans_terms_accepted_at` for that Slack user (via `makeacompany:user_by_slack:<U…>`), matching **/admin → Slack Users**. Bot posts (including squad broadcast roots) are unchanged.

@@ -65,6 +65,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			{ID: "ross", Label: "Ross", Description: "Head of Automation owning technical execution and shipping."},
 			{ID: "garth", Label: "Garth", Description: "Head of Interns supporting research and implementation follow-through."},
 			{ID: "joanne", Label: "Joanne", Description: "Head of Executive Operations for coordination and executive support."},
+			{ID: "anna", Label: "Anna", Description: "Head of Creative specializing in image concepts and generation workflows."},
 		},
 		Skills: []CapabilitySkillV1{
 			{
@@ -89,6 +90,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 					"commenters": "none",
 					"viewers":    "none",
 				},
+			},
+			{
+				ID: "create-image", Label: "Create Image", Description: "Generate an original image from a text prompt using Anna's creative workflow.",
+				RuntimeTool: "anna-create-image", RequiredParams: []string{"intent"}, OptionalParams: []string{"style", "ratio", "size"},
 			},
 			{
 				ID: "create-company", Label: "Create Company", Description: "Start a private company channel from a name (slug); founders default to you plus @mentioned cofounders.",
@@ -166,6 +171,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"ross":   {"read-web", "create-issue", "read-issue", "update-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-web"},
 			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
+			"anna":   {"create-image"},
 		},
 	}
 }

@@ -30,7 +30,7 @@ func TestClassifyBroadcastTrigger(t *testing.T) {
 func TestDecideEveryone(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -40,10 +40,10 @@ func TestDecideEveryone(t *testing.T) {
 		if d.Trigger != TriggerEveryone {
 			t.Fatalf("text=%q trigger=%s", text, d.Trigger)
 		}
-		if len(d.Employees) != 5 {
+		if len(d.Employees) != 3 {
 			t.Fatalf("text=%q employees=%v", text, d.Employees)
 		}
-		want := slices.Clone(cfg.Order)
+		want := slices.Clone(cfg.Order[:3])
 		slices.Sort(want)
 		got := slices.Clone(d.Employees)
 		slices.Sort(got)
@@ -62,7 +62,7 @@ func TestDecideEveryone(t *testing.T) {
 func TestDecideChannelLimitsToThree(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -86,7 +86,7 @@ func TestDecideBroadcastChannelExcludesSquadPoster(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -116,7 +116,7 @@ func TestDecideBroadcastEveryoneExcludesSquadPoster(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -125,7 +125,7 @@ func TestDecideBroadcastEveryoneExcludesSquadPoster(t *testing.T) {
 		UserID:    "UJOANNE",
 		Text:      "<!everyone> all hands",
 	})
-	if d.Trigger != TriggerEveryone || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 4 {
+	if d.Trigger != TriggerEveryone || d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
 		t.Fatalf("got %+v", d)
 	}
 	for _, e := range d.Employees {
@@ -133,7 +133,7 @@ func TestDecideBroadcastEveryoneExcludesSquadPoster(t *testing.T) {
 			t.Fatalf("poster must not receive own broadcast: %v", d.Employees)
 		}
 	}
-	want := []string{"alex", "garth", "ross", "tim"}
+	want := []string{"alex", "ross", "tim"}
 	slices.Sort(want)
 	got := slices.Clone(d.Employees)
 	slices.Sort(got)
@@ -146,7 +146,7 @@ func TestDecideBroadcastBeatsExplicitMention(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -154,10 +154,10 @@ func TestDecideBroadcastBeatsExplicitMention(t *testing.T) {
 	if d.Trigger != TriggerEveryone {
 		t.Fatalf("broadcast must win over explicit mention, got %+v", d)
 	}
-	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 5 {
-		t.Fatalf("everyone must fan out to all configured employees, got %+v", d)
+	if d.DispatchMode != DispatchModeFanout || len(d.Employees) != 3 {
+		t.Fatalf("everyone must fan out to 3 participants, got %+v", d)
 	}
-	want := slices.Clone(cfg.Order)
+	want := slices.Clone(cfg.Order[:3])
 	slices.Sort(want)
 	got := slices.Clone(d.Employees)
 	slices.Sort(got)
@@ -170,7 +170,7 @@ func TestDecideChannelBeatsExplicitMention(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "test",
 	}
@@ -194,7 +194,7 @@ func TestDecideMentionTool(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"garth", "alex"},
 		BotUserToKey:  map[string]string{"UGARTH": "garth"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -214,7 +214,7 @@ func TestDecideMentionPipelineSameBotTwice(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"joanne"},
 		BotUserToKey:  map[string]string{"UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -236,7 +236,7 @@ func TestDecideMentionToolPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -256,7 +256,7 @@ func TestDecideSquadBotParticipantListDoesNotPipelineToMentionedBots(t *testing.
 	cfg := DecideConfig{
 		Order:         []string{"alex", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UJOANNE": "joanne", "UALEX": "alex", "UGARTH": "garth"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -277,7 +277,7 @@ func TestDecideMentionConversationFallback(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"tim"},
 		BotUserToKey:  map[string]string{"UTIM": "tim"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -294,7 +294,7 @@ func TestDecideMentionConversationPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -314,7 +314,7 @@ func TestDecideMentionInThreadOverridesRootMentionStickiness(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "x",
 	}
@@ -333,7 +333,7 @@ func TestDecideBroadcastRootThreadFollowupUsesRandomPicker(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSSBOT": "ross"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -356,7 +356,7 @@ func TestDecideBroadcastRootThreadMentionStillBroadcasts(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSSBOT": "ross"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -382,7 +382,7 @@ func TestDecidePlainDeterministic(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  nil,
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -404,7 +404,7 @@ func TestDecidePlainThreadSingleTargetNotFanout(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  nil,
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -422,7 +422,7 @@ func TestDecidePlainThreadFollowsRootMention(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSSBOT": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -484,7 +484,7 @@ func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -505,7 +505,7 @@ func TestDecide_CompanyOnboardingShapedPlainUsesPlainResponder(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -526,7 +526,7 @@ func TestDecide_OnboardingReplyDoesNotOverrideThreadHandoff(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UROSS": "ross", "UJOANNE": "joanne"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -547,7 +547,7 @@ func TestDecide_CompanyOnboardingShapedThreadNoHandoffUsesPlainResponder(t *test
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -630,7 +630,7 @@ func TestDecide_PlainThreadUnderCreateCompanyConfirmRoot_NoEmployees(t *testing.
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}
@@ -673,7 +673,7 @@ func TestDecide_ExplicitMentionInThreadUnderCreateCompanyConfirmRoot_StillRoutes
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
 		BotUserToKey:  map[string]string{"UALEX": "alex"},
-		EveryoneLimit: 5,
+		EveryoneLimit: 3,
 		ChannelLimit:  3,
 		ShuffleSecret: "secret",
 	}

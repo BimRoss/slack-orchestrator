@@ -137,3 +137,31 @@ func routingTextForDispatch(effText string, imageFileIDs []string) string {
 	}
 	return ""
 }
+
+// routingMentionDetectionText combines message text surfaces that may contain
+// canonical Slack user mention tokens (<@U...>) for routing guards. Some event
+// shapes populate top-level and nested message text differently.
+func routingMentionDetectionText(ev *slackevents.MessageEvent, routeText string) string {
+	seen := make(map[string]struct{}, 3)
+	var parts []string
+	appendText := func(in string) {
+		t := strings.TrimSpace(in)
+		if t == "" {
+			return
+		}
+		if _, ok := seen[t]; ok {
+			return
+		}
+		seen[t] = struct{}{}
+		parts = append(parts, t)
+	}
+
+	appendText(routeText)
+	if ev != nil {
+		appendText(ev.Text)
+		if ev.Message != nil {
+			appendText(ev.Message.Text)
+		}
+	}
+	return strings.Join(parts, "\n")
+}

@@ -102,7 +102,8 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 		return
 	}
 	rc := routingDecideConfig(cfg)
-	if routing.HasOnlyNonSquadMentions(routeText, rc.BotUserToKey) {
+	mentionText := routingMentionDetectionText(ev, routeText)
+	if routing.HasOnlyNonSquadMentions(mentionText, rc.BotUserToKey) {
 		logMessageDrop(outer, "message", "human_to_human_mention", ev.Channel, effThread, ev.TimeStamp)
 		return
 	}
@@ -114,7 +115,7 @@ func handleMessage(ctx context.Context, cfg config.Config, outer slackevents.Eve
 		Text:              routeText,
 		SlackImageFileIDs: imgIDs,
 	}
-	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(routeText, rc)) == 0 {
+	if strings.TrimSpace(effThread) != "" && threadRoutingFetcher != nil && len(routing.SquadMentionsFromText(mentionText, rc)) == 0 {
 		routeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		handoffKey, rootText, err := threadRoutingFetcher(routeCtx, ev.Channel, effThread, ev.TimeStamp)
 		cancel()

@@ -58,3 +58,30 @@ func TestMessageEventImageFileIDs(t *testing.T) {
 		t.Fatalf("got %#v", got)
 	}
 }
+
+func TestRoutingMentionDetectionTextIncludesNestedMessageText(t *testing.T) {
+	ev := &slackevents.MessageEvent{
+		Text: "@Tom W please take this",
+		Message: &slack.Msg{
+			Text: "<@UTOM> please take this",
+		},
+	}
+	got := routingMentionDetectionText(ev, ev.Text)
+	want := "@Tom W please take this\n<@UTOM> please take this"
+	if got != want {
+		t.Fatalf("got %q want %q", got, want)
+	}
+}
+
+func TestRoutingMentionDetectionTextDeDupeAndTrim(t *testing.T) {
+	ev := &slackevents.MessageEvent{
+		Text: "  <@UTOM> hi  ",
+		Message: &slack.Msg{
+			Text: "<@UTOM> hi",
+		},
+	}
+	got := routingMentionDetectionText(ev, " <@UTOM> hi ")
+	if got != "<@UTOM> hi" {
+		t.Fatalf("got %q", got)
+	}
+}

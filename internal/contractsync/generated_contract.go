@@ -3,53 +3,53 @@ package contractsync
 
 const GeneratedRevision = "default"
 
-var GeneratedEmployeeIDs = []string{"alex", "garth", "joanne", "ross", "tim"}
+var GeneratedEmployeeIDs = []string{"alex", "anna", "garth", "joanne", "ross", "tim"}
 
-var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-issue", "delete-company", "read-company", "read-web", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "update-issue", "update-terms"}
+var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-image", "create-issue", "delete-company", "read-company", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "read-web", "update-issue", "update-terms"}
 
-type Tier1Alias struct {
-	PatternID   string
-	CanonicalID string
-}
+type Tier1Alias struct { PatternID string; CanonicalID string }
 
 var GeneratedTier1Aliases = []Tier1Alias{
+	{PatternID: "create-a-issue", CanonicalID: "create-issue"},
+	{PatternID: "create-an-issue", CanonicalID: "create-issue"},
 	{PatternID: "create-company", CanonicalID: "create-company"},
 	{PatternID: "create-connect", CanonicalID: "create-connect"},
 	{PatternID: "create-doc", CanonicalID: "create-doc"},
 	{PatternID: "create-email", CanonicalID: "create-email"},
+	{PatternID: "create-image", CanonicalID: "create-image"},
 	{PatternID: "create-issue", CanonicalID: "create-issue"},
-	{PatternID: "create-an-issue", CanonicalID: "create-issue"},
-	{PatternID: "create-a-issue", CanonicalID: "create-issue"},
 	{PatternID: "delete-company", CanonicalID: "delete-company"},
+	{PatternID: "edit-a-issue", CanonicalID: "update-issue"},
+	{PatternID: "edit-an-issue", CanonicalID: "update-issue"},
+	{PatternID: "edit-issue", CanonicalID: "update-issue"},
 	{PatternID: "file-a-issue", CanonicalID: "create-issue"},
 	{PatternID: "file-an-issue", CanonicalID: "create-issue"},
 	{PatternID: "file-issue", CanonicalID: "create-issue"},
+	{PatternID: "generate-image", CanonicalID: "create-image"},
 	{PatternID: "open-a-issue", CanonicalID: "create-issue"},
 	{PatternID: "open-an-issue", CanonicalID: "create-issue"},
 	{PatternID: "open-issue", CanonicalID: "create-issue"},
+	{PatternID: "read-a-issue", CanonicalID: "read-issue"},
+	{PatternID: "read-an-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-company", CanonicalID: "read-company"},
 	{PatternID: "read-google", CanonicalID: "read-web"},
 	{PatternID: "read-internet", CanonicalID: "read-web"},
-	{PatternID: "read-web", CanonicalID: "read-web"},
 	{PatternID: "read-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-issues", CanonicalID: "read-issue"},
-	{PatternID: "read-an-issue", CanonicalID: "read-issue"},
-	{PatternID: "read-a-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-skills", CanonicalID: "read-skills"},
 	{PatternID: "read-trends", CanonicalID: "read-trends"},
 	{PatternID: "read-twitter", CanonicalID: "read-twitter"},
 	{PatternID: "read-user", CanonicalID: "read-user"},
+	{PatternID: "read-web", CanonicalID: "read-web"},
 	{PatternID: "update-a-issue", CanonicalID: "update-issue"},
 	{PatternID: "update-an-issue", CanonicalID: "update-issue"},
 	{PatternID: "update-issue", CanonicalID: "update-issue"},
-	{PatternID: "edit-a-issue", CanonicalID: "update-issue"},
-	{PatternID: "edit-an-issue", CanonicalID: "update-issue"},
-	{PatternID: "edit-issue", CanonicalID: "update-issue"},
 	{PatternID: "update-terms", CanonicalID: "update-terms"},
 	{PatternID: "write-company", CanonicalID: "create-company"},
 	{PatternID: "write-connect", CanonicalID: "create-connect"},
 	{PatternID: "write-doc", CanonicalID: "create-doc"},
 	{PatternID: "write-email", CanonicalID: "create-email"},
+	{PatternID: "write-image", CanonicalID: "create-image"},
 	{PatternID: "write-issue", CanonicalID: "create-issue"},
 }
 
