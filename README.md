@@ -170,3 +170,7 @@ ROLLOUT_RESTART=true ./scripts/update-rancher-secrets.sh
 - **Implemented:** JSON (**`internal/inbound/v1`**) published to **`slack.work.<employee>.events`** per routing target. Toggle with **`ORCHESTRATOR_DISPATCH_ENABLED`**. Requires **`ORCHESTRATOR_NATS_URL`** (same NATS as worker **`NATS_URL`**). Stream/subjects are auto-created if missing.
 - **Workers:** `SLACK_INGRESS=orchestrator`, **`NATS_URL`**, durable pull consumer per employee (see **employee-factory** `internal/natsbus`).
 - **Roster / tools (future):** Redis map (employee → Slack bot user id, skills catalog ids). Until then: **`MULTIAGENT_BOT_USER_IDS`** in env.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
