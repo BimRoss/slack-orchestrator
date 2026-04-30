@@ -49,6 +49,11 @@ func TestClassifyToolOrConversation_ExplicitTier1(t *testing.T) {
 		{"they will onboard next week", "", KindConversation},
 		{"create channel please", "", KindConversation},
 		{"we have email and twitter tooling", "", KindConversation},
+		{"including read web and create email tools", "", KindConversation},
+		{"read web is live in prod", "", KindConversation},
+		{"we have read-web in prod", "", KindConversation},
+		{"the read web skill is useful", "", KindConversation},
+		{"can you read-web about layoffs?", "read-web", KindTool},
 		{"", "", KindConversation},
 	}
 	for _, tc := range tests {
@@ -56,6 +61,28 @@ func TestClassifyToolOrConversation_ExplicitTier1(t *testing.T) {
 		if gotID != tc.wantID || gotK != tc.wantKind {
 			t.Fatalf("ClassifyToolOrConversation(%q) = (%q, %s), want (%q, %s)",
 				tc.text, gotID, gotK, tc.wantID, tc.wantKind)
+		}
+	}
+}
+
+func TestClassifyToolOrConversationWithReason(t *testing.T) {
+	tests := []struct {
+		text       string
+		wantID     string
+		wantKind   Kind
+		wantReason string
+	}{
+		{"read-web", "read-web", KindTool, ClassificationReasonTier1SingleMatch},
+		{"read web skill is live", "", KindConversation, ClassificationReasonTier1DescriptiveReference},
+		{"including read web and create email tools", "", KindConversation, ClassificationReasonTier1MultiMatch},
+		{"hello there", "", KindConversation, ClassificationReasonTier1NoMatch},
+	}
+
+	for _, tc := range tests {
+		gotID, gotK, gotReason := ClassifyToolOrConversationWithReason(tc.text)
+		if gotID != tc.wantID || gotK != tc.wantKind || gotReason != tc.wantReason {
+			t.Fatalf("ClassifyToolOrConversationWithReason(%q) = (%q, %s, %q), want (%q, %s, %q)",
+				tc.text, gotID, gotK, gotReason, tc.wantID, tc.wantKind, tc.wantReason)
 		}
 	}
 }

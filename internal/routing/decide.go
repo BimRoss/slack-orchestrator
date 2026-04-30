@@ -42,6 +42,8 @@ type Decision struct {
 	Employees []string `json:"employees"`
 	Kind      Kind     `json:"kind"`
 	ToolID    string   `json:"tool_id,omitempty"`
+	// ClassificationReason explains how Tier-1 classified tool vs conversation.
+	ClassificationReason string `json:"classification_reason,omitempty"`
 	// DispatchMode is single vs fanout (everyone/channel caps).
 	DispatchMode DispatchMode `json:"dispatch_mode"`
 	// PrimaryEmployee is the canonical actor for single-target turns (first responder); empty for pure fanout.
@@ -126,31 +128,34 @@ func Decide(cfg DecideConfig, in Input) Decision {
 		// Guard roster/status posts from squad bots ("Participants: <@...>, <@...>") so they do not
 		// fan out into multi-agent chat. Directed callouts in normal prose still route by mention.
 		if posterKey, ok := cfg.BotUserToKey[strings.TrimSpace(in.UserID)]; ok && posterKey != "" && len(mentioned) >= 2 && looksLikeParticipantRosterText(text) {
-			toolID, k := ClassifyToolOrConversation(text)
+			toolID, k, reason := ClassifyToolOrConversationWithReason(text)
 			if k == KindTool && toolID != "" {
 				return withSingleMeta(Decision{
-					Trigger:   TriggerPlain,
-					Employees: []string{posterKey},
-					Kind:      KindTool,
-					ToolID:    toolID,
+					Trigger:              TriggerPlain,
+					Employees:            []string{posterKey},
+					Kind:                 KindTool,
+					ToolID:               toolID,
+					ClassificationReason: reason,
 				})
 			}
 			return withSingleMeta(Decision{
-				Trigger:   TriggerPlain,
-				Employees: []string{posterKey},
-				Kind:      KindConversation,
+				Trigger:              TriggerPlain,
+				Employees:            []string{posterKey},
+				Kind:                 KindConversation,
+				ClassificationReason: reason,
 			})
 		}
 		if pd, ok := TryPipelineDecision(cfg, in); ok {
 			return pd
 		}
-		toolID, k := ClassifyToolOrConversation(text)
+		toolID, k, reason := ClassifyToolOrConversationWithReason(text)
 		if k == KindTool && toolID != "" {
 			d := Decision{
-				Trigger:   TriggerMention,
-				Employees: mentioned,
-				Kind:      KindTool,
-				ToolID:    toolID,
+				Trigger:              TriggerMention,
+				Employees:            mentioned,
+				Kind:                 KindTool,
+				ToolID:               toolID,
+				ClassificationReason: reason,
 			}
 			if len(mentioned) > 1 {
 				return withFanoutMeta(d)
@@ -158,9 +163,10 @@ func Decide(cfg DecideConfig, in Input) Decision {
 			return withSingleMeta(d)
 		}
 		d := Decision{
-			Trigger:   TriggerMention,
-			Employees: mentioned,
-			Kind:      KindConversation,
+			Trigger:              TriggerMention,
+			Employees:            mentioned,
+			Kind:                 KindConversation,
+			ClassificationReason: reason,
 		}
 		if len(mentioned) > 1 {
 			return withFanoutMeta(d)
@@ -174,19 +180,21 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	if strings.TrimSpace(in.ThreadTS) != "" {
 		key := strings.TrimSpace(in.ThreadPlainHandoffKey)
 		if key != "" {
-			toolID, k := ClassifyToolOrConversation(text)
+			toolID, k, reason := ClassifyToolOrConversationWithReason(text)
 			if k == KindTool && toolID != "" {
 				return withSingleMeta(Decision{
-					Trigger:   TriggerPlain,
-					Employees: []string{key},
-					Kind:      KindTool,
-					ToolID:    toolID,
+					Trigger:              TriggerPlain,
+					Employees:            []string{key},
+					Kind:                 KindTool,
+					ToolID:               toolID,
+					ClassificationReason: reason,
 				})
 			}
 			return withSingleMeta(Decision{
-				Trigger:   TriggerPlain,
-				Employees: []string{key},
-				Kind:      KindConversation,
+				Trigger:              TriggerPlain,
+				Employees:            []string{key},
+				Kind:                 KindConversation,
+				ClassificationReason: reason,
 			})
 		}
 	}
@@ -201,19 +209,21 @@ func Decide(cfg DecideConfig, in Input) Decision {
 	// Plain message → one responder: first agent after the same shuffle as @here/@channel multi-agent
 	// (shuffleOrder(message_ts, roster, secret)[0]; keys vary per message like broadcast slot order).
 	picked := pickPlainResponder(in.MessageTS, cfg.Order, cfg.ShuffleSecret)
-	toolID, k := ClassifyToolOrConversation(text)
+	toolID, k, reason := ClassifyToolOrConversationWithReason(text)
 	if k == KindTool && toolID != "" {
 		return withSingleMeta(Decision{
-			Trigger:   TriggerPlain,
-			Employees: []string{picked},
-			Kind:      KindTool,
-			ToolID:    toolID,
+			Trigger:              TriggerPlain,
+			Employees:            []string{picked},
+			Kind:                 KindTool,
+			ToolID:               toolID,
+			ClassificationReason: reason,
 		})
 	}
 	return withSingleMeta(Decision{
-		Trigger:   TriggerPlain,
-		Employees: []string{picked},
-		Kind:      KindConversation,
+		Trigger:              TriggerPlain,
+		Employees:            []string{picked},
+		Kind:                 KindConversation,
+		ClassificationReason: reason,
 	})
 }
 

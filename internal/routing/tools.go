@@ -92,7 +92,20 @@ type tier1Pattern struct {
 	re          *regexp.Regexp
 }
 
+type tier1Match struct {
+	canonicalID string
+	start       int
+	end         int
+}
+
 var reSlackAngleTokens = regexp.MustCompile(`<[@#][^>]*>`)
+
+const (
+	ClassificationReasonTier1SingleMatch          = "tier1_single_match"
+	ClassificationReasonTier1NoMatch              = "tier1_no_match"
+	ClassificationReasonTier1MultiMatch           = "tier1_multi_match_conversation"
+	ClassificationReasonTier1DescriptiveReference = "tier1_descriptive_reference_conversation"
+)
 
 func init() {
 	entries := make([]struct {
@@ -144,17 +157,116 @@ func normalizeMessageForTier1(text string) string {
 	return t
 }
 
+func matchedCanonicalTier1(text string) []tier1Match {
+	if text == "" {
+		return nil
+	}
+	seen := make(map[string]struct{}, 2)
+	var out []tier1Match
+	for _, p := range tier1ToolPatterns {
+		loc := p.re.FindStringIndex(text)
+		if loc == nil {
+			continue
+		}
+		if _, ok := seen[p.canonicalID]; ok {
+			continue
+		}
+		seen[p.canonicalID] = struct{}{}
+		out = append(out, tier1Match{
+			canonicalID: p.canonicalID,
+			start:       loc[0],
+			end:         loc[1],
+		})
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		return out[i].start < out[j].start
+	})
+	return out
+}
+
+func firstWord(s string) string {
+	for _, tok := range strings.Fields(s) {
+		w := strings.Trim(tok, ".,!?;:()[]{}\"'")
+		if w != "" {
+			return w
+		}
+	}
+	return ""
+}
+
+func lastWord(s string) string {
+	toks := strings.Fields(s)
+	for i := len(toks) - 1; i >= 0; i-- {
+		w := strings.Trim(toks[i], ".,!?;:()[]{}\"'")
+		if w != "" {
+			return w
+		}
+	}
+	return ""
+}
+
+func secondWord(s string) string {
+	count := 0
+	for _, tok := range strings.Fields(s) {
+		w := strings.Trim(tok, ".,!?;:()[]{}\"'")
+		if w == "" {
+			continue
+		}
+		count++
+		if count == 2 {
+			return w
+		}
+	}
+	return ""
+}
+
+func isDescriptiveSkillReference(text string, m tier1Match) bool {
+	before := strings.TrimSpace(text[:m.start])
+	after := strings.TrimSpace(text[m.end:])
+	beforeLast := lastWord(before)
+	afterFirst := firstWord(after)
+	afterSecond := secondWord(after)
+
+	switch beforeLast {
+	case "including", "include", "includes", "with", "have", "has", "seeing", "saw", "core":
+		return true
+	}
+	switch afterFirst {
+	case "tool", "tools", "skill", "skills", "enabled", "available", "live":
+		return true
+	case "is":
+		switch afterSecond {
+		case "enabled", "available", "live":
+			return true
+		}
+	}
+	return false
+}
+
 // ClassifyToolOrConversation is Tier 1: explicit tool name only (hyphen / space / underscore
 // between segments). No broad keyword intent. No match → conversation (Tier 2 is future work).
 func ClassifyToolOrConversation(text string) (toolID string, mode Kind) {
+	toolID, mode, _ = ClassifyToolOrConversationWithReason(text)
+	return toolID, mode
+}
+
+// ClassifyToolOrConversationWithReason returns Tier-1 classification plus a stable reason code
+// for routing telemetry.
+func ClassifyToolOrConversationWithReason(text string) (toolID string, mode Kind, reason string) {
 	t := normalizeMessageForTier1(text)
 	if t == "" {
-		return "", KindConversation
+		return "", KindConversation, ClassificationReasonTier1NoMatch
 	}
-	for _, p := range tier1ToolPatterns {
-		if p.re.MatchString(t) {
-			return p.canonicalID, KindTool
+	matches := matchedCanonicalTier1(t)
+	if len(matches) == 1 {
+		m := matches[0]
+		if isDescriptiveSkillReference(t, m) {
+			return "", KindConversation, ClassificationReasonTier1DescriptiveReference
 		}
+		return m.canonicalID, KindTool, ClassificationReasonTier1SingleMatch
 	}
-	return "", KindConversation
+	if len(matches) > 1 {
+		return "", KindConversation, ClassificationReasonTier1MultiMatch
+	}
+	return "", KindConversation, ClassificationReasonTier1NoMatch
 }

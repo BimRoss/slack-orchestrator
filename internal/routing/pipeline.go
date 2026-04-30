@@ -15,6 +15,8 @@ type PipelineStep struct {
 	StepText       string `json:"step_text"`
 	Kind           Kind   `json:"kind"`
 	ToolID         string `json:"tool_id,omitempty"`
+	// ClassificationReason explains Tier-1 classification for this step text.
+	ClassificationReason string `json:"classification_reason,omitempty"`
 }
 
 // squadMentionOccurrences returns every squad bot mention in left-to-right order (byte indices).
@@ -96,25 +98,27 @@ func TryPipelineDecision(cfg DecideConfig, in Input) (Decision, bool) {
 		if st == "" {
 			st = strings.TrimSpace(in.Text)
 		}
-		toolID, k := ClassifyToolOrConversation(st)
+		toolID, k, reason := ClassifyToolOrConversationWithReason(st)
 		steps = append(steps, PipelineStep{
-			TargetEmployee: strings.ToLower(strings.TrimSpace(keys[i])),
-			StepText:       st,
-			Kind:           k,
-			ToolID:         toolID,
+			TargetEmployee:       strings.ToLower(strings.TrimSpace(keys[i])),
+			StepText:             st,
+			Kind:                 k,
+			ToolID:               toolID,
+			ClassificationReason: reason,
 		})
 	}
 	chainID := fmt.Sprintf("%s:%s", strings.TrimSpace(in.ChannelID), strings.TrimSpace(in.MessageTS))
 	first := steps[0]
 	d := Decision{
-		Trigger:           TriggerMention,
-		ExecutionMode:     ExecutionModePipeline,
-		PipelineSteps:     steps,
-		PipelineStepIndex: 0,
-		ChainID:           chainID,
-		Employees:         []string{first.TargetEmployee},
-		Kind:              first.Kind,
-		ToolID:            first.ToolID,
+		Trigger:              TriggerMention,
+		ExecutionMode:        ExecutionModePipeline,
+		PipelineSteps:        steps,
+		PipelineStepIndex:    0,
+		ChainID:              chainID,
+		Employees:            []string{first.TargetEmployee},
+		Kind:                 first.Kind,
+		ToolID:               first.ToolID,
+		ClassificationReason: first.ClassificationReason,
 	}
 	return withPipelineMeta(d), true
 }

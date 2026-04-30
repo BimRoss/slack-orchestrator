@@ -290,6 +290,48 @@ func TestDecideMentionConversationFallback(t *testing.T) {
 	}
 }
 
+func TestDecideMentionConversation_WhenCatalogListingIncludesMultipleToolNames(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"ross"},
+		BotUserToKey:  map[string]string{"UROSS": "ross"},
+		EveryoneLimit: 3,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	text := "Prod looks stable and active. I'm seeing core Read Web and Create Email tools. <@UROSS>, does that spike look normal?"
+	d := Decide(cfg, Input{Text: text})
+	if d.Trigger != TriggerMention || len(d.Employees) != 1 || d.Employees[0] != "ross" {
+		t.Fatalf("got %+v", d)
+	}
+	if d.Kind != KindConversation || d.ToolID != "" {
+		t.Fatalf("expected conversation handoff, got %+v", d)
+	}
+	if d.ClassificationReason != ClassificationReasonTier1MultiMatch {
+		t.Fatalf("expected multi-match reason, got %+v", d)
+	}
+}
+
+func TestDecideMentionConversation_WhenSingleSkillMentionIsDescriptive(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"ross"},
+		BotUserToKey:  map[string]string{"UROSS": "ross"},
+		EveryoneLimit: 3,
+		ChannelLimit:  3,
+		ShuffleSecret: "x",
+	}
+	text := "I am seeing the Read Web skill is live in prod. <@UROSS>, does that spike look normal?"
+	d := Decide(cfg, Input{Text: text})
+	if d.Trigger != TriggerMention || len(d.Employees) != 1 || d.Employees[0] != "ross" {
+		t.Fatalf("got %+v", d)
+	}
+	if d.Kind != KindConversation || d.ToolID != "" {
+		t.Fatalf("expected conversation handoff, got %+v", d)
+	}
+	if d.ClassificationReason != ClassificationReasonTier1DescriptiveReference {
+		t.Fatalf("expected descriptive-reference reason, got %+v", d)
+	}
+}
+
 func TestDecideMentionConversationPipelineForMultipleMentions(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "joanne"},
