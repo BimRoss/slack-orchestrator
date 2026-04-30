@@ -543,6 +543,33 @@ func TestDecidePlainThreadHandoffFromLastMention(t *testing.T) {
 	}
 }
 
+func TestDecidePlainThreadHandoffBlocksToolWithoutExplicitMention(t *testing.T) {
+	cfg := DecideConfig{
+		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},
+		BotUserToKey:  map[string]string{"UTIM": "tim"},
+		EveryoneLimit: 3,
+		ChannelLimit:  3,
+		ShuffleSecret: "secret",
+	}
+	in := Input{
+		ChannelID:             "C",
+		ThreadTS:              "200.0",
+		MessageTS:             "200.1",
+		Text:                  "how can I track that read-web scan?",
+		ThreadPlainHandoffKey: "tim",
+	}
+	d := Decide(cfg, in)
+	if d.Trigger != TriggerPlain || len(d.Employees) != 1 || d.Employees[0] != "tim" {
+		t.Fatalf("want tim handoff; got %+v", d)
+	}
+	if d.Kind != KindConversation || d.ToolID != "" {
+		t.Fatalf("thread handoff without explicit mention must not execute tool; got %+v", d)
+	}
+	if d.ClassificationReason != ClassificationReasonThreadHandoffToolBlocked {
+		t.Fatalf("want tool-block reason, got %+v", d)
+	}
+}
+
 func TestDecide_CompanyOnboardingShapedPlainUsesPlainResponder(t *testing.T) {
 	cfg := DecideConfig{
 		Order:         []string{"alex", "tim", "ross", "garth", "joanne"},

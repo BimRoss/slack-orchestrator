@@ -26,6 +26,8 @@ const (
 	TriggerPlain    Trigger = "plain"
 )
 
+const ClassificationReasonThreadHandoffToolBlocked = "thread_handoff_tool_requires_explicit_mention"
+
 // DispatchMode describes how many NATS targets were chosen (observability + worker hints).
 type DispatchMode string
 
@@ -185,9 +187,8 @@ func Decide(cfg DecideConfig, in Input) Decision {
 				return withSingleMeta(Decision{
 					Trigger:              TriggerPlain,
 					Employees:            []string{key},
-					Kind:                 KindTool,
-					ToolID:               toolID,
-					ClassificationReason: reason,
+					Kind:                 KindConversation,
+					ClassificationReason: ClassificationReasonThreadHandoffToolBlocked,
 				})
 			}
 			return withSingleMeta(Decision{
