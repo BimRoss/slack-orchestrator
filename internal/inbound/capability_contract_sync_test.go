@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"slices"
+	"sort"
 	"testing"
 
 	"github.com/bimross/slack-orchestrator/internal/contractsync"
@@ -55,7 +56,8 @@ func TestDefaultCapabilityContractSkillIDsMatchGeneratedContract(t *testing.T) {
 
 	got := DefaultCapabilityContractSkillIDs()
 	want := append([]string(nil), contractsync.GeneratedSkillIDs...)
+	sort.Strings(want)
 	if !slices.Equal(got, want) {
-		t.Fatalf("generated contract drift: got %v want %v", got, want)
+		t.Fatalf("generated contract drift: got %v want %v (sorted generated)", got, want)
 	}
 }

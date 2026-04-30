@@ -99,21 +99,30 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
-				ID: "create-connect", Label: "Create Connect", Description: "Generate a Slack Connect setup link for the current company channel. No confirm/cancel flow.",
-				RuntimeTool: "joanne-create-connect", RequiredParams: []string{}, OptionalParams: []string{},
+				ID: "create-connect", Label: "Create Connect", Description: "Generate a Slack Connect setup link for the current company channel to invite others, or have your MakeACompany channel alongside other's in your own workspace.",
+				RuntimeTool:    "joanne-create-connect",
+				RequiredParams: []string{},
+				OptionalParams: []string{"emails"},
+				ParamDefaults: map[string]string{
+					"emails": "Optional. When omitted, the runtime uses the message author's Slack email, any email addresses in the message text, and emails resolved from @mentioned users (same behavior as if you only @mention people or type addresses inline).",
+				},
 			},
 			{
-				ID: "create-issue", Label: "Create Issue", Description: "Create a GitHub issue from Slack thread context and complaint details. Requires confirmation before publish.",
-				RuntimeTool: "ross-create-issue", RequiredParams: []string{"title", "body"}, OptionalParams: []string{"repo", "labels", "assignees"},
-				ParamDefaults: map[string]string{
-					"repo":      "BimRoss/create-issue",
-					"labels":    "none",
-					"assignees": "none",
-				},
+				ID: "create-issue", Label: "Create Issue", Description: "Create a company issue with a title and body from the Slack thread. New issues land in Backlog on the team board. Requires confirmation before publish.",
+				RuntimeTool:    "ross-create-issue",
+				RequiredParams: []string{"body", "title"},
+				OptionalParams: []string{},
 			},
 			{
 				ID: "read-issue", Label: "Read Issue", Description: "List GitHub project issue cards by workflow lane (Backlog, In Progress, Done).",
 				RuntimeTool: "ross-read-issue", RequiredParams: []string{}, OptionalParams: []string{},
+			},
+			{
+				ID: "update-issue", Label: "Update Issue", Description: "Update a company issue, including the title, body, or status.  Requires confirmation before write.",
+				RuntimeTool: "ross-update-issue", RequiredParams: []string{"number"}, OptionalParams: []string{"body", "title", "status"},
+				ParamDefaults: map[string]string{
+					"status": "Match an existing Project Status option (for example Backlog, In Progress, Done)",
+				},
 			},
 			{
 				ID: "delete-company", Label: "Delete Company", Description: "Removes a company and sends it to the archive. Requires confirmation.",
@@ -127,8 +136,8 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "read-internet", Label: "Read Internet", Description: "Search the public web (internet) for current events and external references.",
-				RuntimeTool: "joanne-read-internet", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
+				ID: "read-web", Label: "Read Web", Description: "Search the public web (internet) for current events and external references.",
+				RuntimeTool: "joanne-read-web", RequiredParams: []string{"query"}, OptionalParams: []string{"count"},
 			},
 			{
 				ID: "read-skills", Label: "Read Skills", Description: "Display the skills of the team",
@@ -147,16 +156,16 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "garth-read-trends", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
-				ID: "update-terms", Label: "Update Terms", Description: "Show platform terms of use; record I Agree / I Do Not Agree on the operator profile (same confirm control as #humans onboarding).",
+				ID: "update-terms", Label: "Update Terms", Description: "Show platform terms of use for users to agree (or not). Automatically recorded",
 				RuntimeTool: "joanne-update-terms", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 		},
 		EmployeeSkillIDs: map[string][]string{
-			"alex":   {"read-internet"},
-			"tim":    {"read-internet"},
-			"ross":   {"read-internet", "create-issue", "read-issue"},
-			"garth":  {"read-twitter", "read-trends", "read-internet"},
-			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
+			"alex":   {"read-web"},
+			"tim":    {"read-web"},
+			"ross":   {"read-web", "create-issue", "read-issue", "update-issue"},
+			"garth":  {"read-twitter", "read-trends", "read-web"},
+			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
 		},
 	}
 }
