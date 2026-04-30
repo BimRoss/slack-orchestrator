@@ -103,6 +103,19 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "joanne-create-connect", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
+				ID: "create-issue", Label: "Create Issue", Description: "Create a GitHub issue from Slack thread context and complaint details. Requires confirmation before publish.",
+				RuntimeTool: "ross-create-issue", RequiredParams: []string{"title", "body"}, OptionalParams: []string{"repo", "labels", "assignees"},
+				ParamDefaults: map[string]string{
+					"repo":      "BimRoss/create-issue",
+					"labels":    "none",
+					"assignees": "none",
+				},
+			},
+			{
+				ID: "read-issue", Label: "Read Issue", Description: "List GitHub project issue cards by workflow lane (Backlog, In Progress, Done).",
+				RuntimeTool: "ross-read-issue", RequiredParams: []string{}, OptionalParams: []string{},
+			},
+			{
 				ID: "delete-company", Label: "Delete Company", Description: "Removes a company and sends it to the archive. Requires confirmation.",
 				RuntimeTool: "joanne-delete-company", RequiredParams: []string{"name"}, OptionalParams: []string{},
 				ParamDefaults: map[string]string{
@@ -141,7 +154,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		EmployeeSkillIDs: map[string][]string{
 			"alex":   {"read-internet"},
 			"tim":    {"read-internet"},
-			"ross":   {"read-internet"},
+			"ross":   {"read-internet", "create-issue", "read-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-internet"},
 			"joanne": {"read-company", "read-internet", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
 		},

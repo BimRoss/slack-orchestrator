@@ -5,19 +5,35 @@ const GeneratedRevision = "default"
 
 var GeneratedEmployeeIDs = []string{"alex", "garth", "joanne", "ross", "tim"}
 
-var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "delete-company", "read-company", "read-internet", "read-skills", "read-trends", "read-twitter", "read-user", "update-terms"}
+var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-issue", "delete-company", "read-company", "read-internet", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "update-terms"}
 
-type Tier1Alias struct { PatternID string; CanonicalID string }
+type Tier1Alias struct {
+	PatternID   string
+	CanonicalID string
+}
 
 var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "create-company", CanonicalID: "create-company"},
 	{PatternID: "create-connect", CanonicalID: "create-connect"},
 	{PatternID: "create-doc", CanonicalID: "create-doc"},
 	{PatternID: "create-email", CanonicalID: "create-email"},
+	{PatternID: "create-issue", CanonicalID: "create-issue"},
+	{PatternID: "create-an-issue", CanonicalID: "create-issue"},
+	{PatternID: "create-a-issue", CanonicalID: "create-issue"},
 	{PatternID: "delete-company", CanonicalID: "delete-company"},
+	{PatternID: "file-a-issue", CanonicalID: "create-issue"},
+	{PatternID: "file-an-issue", CanonicalID: "create-issue"},
+	{PatternID: "file-issue", CanonicalID: "create-issue"},
+	{PatternID: "open-a-issue", CanonicalID: "create-issue"},
+	{PatternID: "open-an-issue", CanonicalID: "create-issue"},
+	{PatternID: "open-issue", CanonicalID: "create-issue"},
 	{PatternID: "read-company", CanonicalID: "read-company"},
 	{PatternID: "read-google", CanonicalID: "read-internet"},
 	{PatternID: "read-internet", CanonicalID: "read-internet"},
+	{PatternID: "read-issue", CanonicalID: "read-issue"},
+	{PatternID: "read-issues", CanonicalID: "read-issue"},
+	{PatternID: "read-an-issue", CanonicalID: "read-issue"},
+	{PatternID: "read-a-issue", CanonicalID: "read-issue"},
 	{PatternID: "read-skills", CanonicalID: "read-skills"},
 	{PatternID: "read-trends", CanonicalID: "read-trends"},
 	{PatternID: "read-twitter", CanonicalID: "read-twitter"},
@@ -27,6 +43,7 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "write-connect", CanonicalID: "create-connect"},
 	{PatternID: "write-doc", CanonicalID: "create-doc"},
 	{PatternID: "write-email", CanonicalID: "create-email"},
+	{PatternID: "write-issue", CanonicalID: "create-issue"},
 }
 
-var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "delete-company"}
+var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "create-issue", "delete-company"}
