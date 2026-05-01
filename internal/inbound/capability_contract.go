@@ -123,6 +123,10 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				RuntimeTool: "ross-read-issue", RequiredParams: []string{}, OptionalParams: []string{},
 			},
 			{
+				ID: "read-backend", Label: "Read Backend", Description: "Read the makeacompany backend admin JSON surfaces (health, catalog, users, company channels, and related diagnostics).",
+				RuntimeTool: "ross-read-backend", RequiredParams: []string{}, OptionalParams: []string{},
+			},
+			{
 				ID: "update-issue", Label: "Update Issue", Description: "Update a company issue, including the title, body, or status.  Requires confirmation before write.",
 				RuntimeTool: "ross-update-issue", RequiredParams: []string{"number"}, OptionalParams: []string{"body", "title", "status"},
 				ParamDefaults: map[string]string{
@@ -168,7 +172,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 		EmployeeSkillIDs: map[string][]string{
 			"alex":   {"read-web"},
 			"tim":    {"read-web"},
-			"ross":   {"read-web", "create-issue", "read-issue", "update-issue"},
+			"ross":   {"read-web", "create-issue", "read-issue", "read-backend", "update-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-web"},
 			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
 			"anna":   {"create-image", "read-web"},
