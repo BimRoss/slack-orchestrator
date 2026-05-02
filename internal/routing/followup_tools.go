@@ -4,7 +4,7 @@ import "strings"
 
 // ToolPinnedSkillIDs returns the canonical skill IDs that enable Redis thread-followup pinning.
 func ToolPinnedSkillIDs() []string {
-	return []string{"create-email", "create-doc", "create-company", "create-issue", "update-issue", "delete-company"}
+	return []string{"create-email", "create-email-welcome", "create-doc", "create-company", "create-issue", "update-issue", "delete-company"}
 }
 
 // ToolPinsThreadSkillFollowup is true for Tier-1 mutating skills that typically gather fields

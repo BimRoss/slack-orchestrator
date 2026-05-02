@@ -21,6 +21,8 @@ type Tier1PatternEntry struct {
 var tier1PatternEntries = []Tier1PatternEntry{
 	{"create-email", "create-email"},
 	{"write-email", "create-email"},
+	{"create-email-welcome", "create-email-welcome"},
+	{"write-email-welcome", "create-email-welcome"},
 	{"create-doc", "create-doc"},
 	{"write-doc", "create-doc"},
 	{"create-image", "create-image"},
@@ -165,12 +167,19 @@ func matchedCanonicalTier1(text string) []tier1Match {
 	}
 	seen := make(map[string]struct{}, 2)
 	var out []tier1Match
+	// Patterns iterate in length-descending order (see init), so longer compound
+	// skill ids (e.g. "create-email-welcome") are evaluated before their substrings
+	// (e.g. "create-email"). Skip a candidate when its span sits fully inside any
+	// already-added match so a single explicit name does not register two intents.
 	for _, p := range tier1ToolPatterns {
 		loc := p.re.FindStringIndex(text)
 		if loc == nil {
 			continue
 		}
 		if _, ok := seen[p.canonicalID]; ok {
+			continue
+		}
+		if isRangeCoveredByExistingMatch(loc[0], loc[1], out) {
 			continue
 		}
 		seen[p.canonicalID] = struct{}{}
@@ -184,6 +193,15 @@ func matchedCanonicalTier1(text string) []tier1Match {
 		return out[i].start < out[j].start
 	})
 	return out
+}
+
+func isRangeCoveredByExistingMatch(start, end int, existing []tier1Match) bool {
+	for _, m := range existing {
+		if start >= m.start && end <= m.end {
+			return true
+		}
+	}
+	return false
 }
 
 func firstWord(s string) string {

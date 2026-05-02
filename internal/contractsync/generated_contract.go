@@ -5,7 +5,7 @@ const GeneratedRevision = "default"
 
 var GeneratedEmployeeIDs = []string{"alex", "anna", "garth", "joanne", "ross", "tim"}
 
-var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-image", "create-issue", "delete-company", "read-backend", "read-company", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "read-web", "update-issue", "update-terms"}
+var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-email-welcome", "create-image", "create-issue", "delete-company", "read-backend", "read-company", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "read-web", "update-issue", "update-terms"}
 
 type Tier1Alias struct { PatternID string; CanonicalID string }
 
@@ -16,6 +16,7 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "create-connect", CanonicalID: "create-connect"},
 	{PatternID: "create-doc", CanonicalID: "create-doc"},
 	{PatternID: "create-email", CanonicalID: "create-email"},
+	{PatternID: "create-email-welcome", CanonicalID: "create-email-welcome"},
 	{PatternID: "create-image", CanonicalID: "create-image"},
 	{PatternID: "create-issue", CanonicalID: "create-issue"},
 	{PatternID: "delete-company", CanonicalID: "delete-company"},
@@ -49,8 +50,9 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "write-connect", CanonicalID: "create-connect"},
 	{PatternID: "write-doc", CanonicalID: "create-doc"},
 	{PatternID: "write-email", CanonicalID: "create-email"},
+	{PatternID: "write-email-welcome", CanonicalID: "create-email-welcome"},
 	{PatternID: "write-image", CanonicalID: "create-image"},
 	{PatternID: "write-issue", CanonicalID: "create-issue"},
 }
 
-var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "create-issue", "delete-company", "update-issue"}
+var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "create-email-welcome", "create-issue", "delete-company", "update-issue"}

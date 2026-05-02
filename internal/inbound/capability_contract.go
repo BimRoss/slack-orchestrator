@@ -79,6 +79,12 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
+				ID: "create-email-welcome", Label: "Create Email (Welcome)", Description: "Send the standard MakeACompany welcome email. Wraps create-email with a fixed subject, one short welcoming paragraph, and a Join our Company button. Requires confirmation before send.",
+				RuntimeTool: "joanne-create-email-welcome", RequiredParams: []string{"name", "email"},
+				OptionalParams: []string{},
+				Requires:       []string{"google_oauth"},
+			},
+			{
 				ID: "create-doc", Label: "Create Doc", Description: "Create Google documents, outlines, and game plans. Pair with search skills to produce research documents in seconds.",
 				RuntimeTool: "joanne-create-doc", RequiredParams: []string{"intent", "title", "editors"},
 				OptionalParams: []string{"commenters", "viewers", "type", "length"},
@@ -174,7 +180,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {"read-web"},
 			"ross":   {"read-web", "create-issue", "read-issue", "read-backend", "update-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-web"},
-			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-doc", "update-terms"},
+			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-email-welcome", "create-doc", "update-terms"},
 			"anna":   {"create-image", "read-web"},
 		},
 	}
