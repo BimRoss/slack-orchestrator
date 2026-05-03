@@ -12,4 +12,7 @@ func TestToolPinsThreadSkillFollowup(t *testing.T) {
 	if !ToolPinsThreadSkillFollowup("  DELETE-COMPANY ") {
 		t.Fatal("trim/case insensitive delete-company should pin")
 	}
+	if !ToolPinsThreadSkillFollowup("update-company") {
+		t.Fatal("update-company should pin")
+	}
 }

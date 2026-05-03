@@ -59,6 +59,10 @@ func TestClassifyToolOrConversation_ExplicitTier1(t *testing.T) {
 		{"we have read-web in prod", "", KindConversation},
 		{"the read web skill is useful", "", KindConversation},
 		{"can you read-web about layoffs?", "read-web", KindTool},
+		{"update-company", "update-company", KindTool},
+		{"update company", "update-company", KindTool},
+		{"update_company", "update-company", KindTool},
+		{"update-company acme-rebrand", "update-company", KindTool},
 		{"", "", KindConversation},
 	}
 	for _, tc := range tests {

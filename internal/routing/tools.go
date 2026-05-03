@@ -54,6 +54,7 @@ var tier1PatternEntries = []Tier1PatternEntry{
 	{"edit-an-issue", "update-issue"},
 	{"edit-a-issue", "update-issue"},
 	{"delete-company", "delete-company"},
+	{"update-company", "update-company"},
 	{"read-company", "read-company"},
 	{"read-google", "read-web"},
 	{"read-web", "read-web"},

@@ -147,6 +147,13 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 				},
 			},
 			{
+				ID: "update-company", Label: "Update Company", Description: "Rename the current company Slack channel (the channel where the message is sent) and sync the new slug/display name in app registry. Required field name is the new channel slug. Requires explicit confirmation before rename.",
+				RuntimeTool: "joanne-update-company", RequiredParams: []string{"name"}, OptionalParams: []string{},
+				ParamDefaults: map[string]string{
+					"name": "New Slack channel name (slug) for the current channel; gathered in-thread when not in the first message",
+				},
+			},
+			{
 				ID: "read-company", Label: "Read Company", Description: "Summarize the latest activity within the company.",
 				RuntimeTool: "joanne-read-company", RequiredParams: []string{}, OptionalParams: []string{},
 			},
@@ -180,7 +187,7 @@ func DefaultCapabilityContractV1() *CapabilityContractV1 {
 			"tim":    {"read-web"},
 			"ross":   {"read-web", "create-issue", "read-issue", "read-backend", "update-issue"},
 			"garth":  {"read-twitter", "read-trends", "read-web"},
-			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "create-email", "create-email-welcome", "create-doc", "update-terms"},
+			"joanne": {"read-company", "read-web", "read-skills", "read-user", "create-company", "create-connect", "delete-company", "update-company", "create-email", "create-email-welcome", "create-doc", "update-terms"},
 			"anna":   {"create-image", "read-web"},
 		},
 	}

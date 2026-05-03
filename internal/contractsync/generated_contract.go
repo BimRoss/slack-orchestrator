@@ -5,7 +5,7 @@ const GeneratedRevision = "default"
 
 var GeneratedEmployeeIDs = []string{"alex", "anna", "garth", "joanne", "ross", "tim"}
 
-var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-email-welcome", "create-image", "create-issue", "delete-company", "read-backend", "read-company", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "read-web", "update-issue", "update-terms"}
+var GeneratedSkillIDs = []string{"create-company", "create-connect", "create-doc", "create-email", "create-email-welcome", "create-image", "create-issue", "delete-company", "read-backend", "read-company", "read-issue", "read-skills", "read-trends", "read-twitter", "read-user", "read-web", "update-company", "update-issue", "update-terms"}
 
 type Tier1Alias struct { PatternID string; CanonicalID string }
 
@@ -44,6 +44,7 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "read-web", CanonicalID: "read-web"},
 	{PatternID: "update-a-issue", CanonicalID: "update-issue"},
 	{PatternID: "update-an-issue", CanonicalID: "update-issue"},
+	{PatternID: "update-company", CanonicalID: "update-company"},
 	{PatternID: "update-issue", CanonicalID: "update-issue"},
 	{PatternID: "update-terms", CanonicalID: "update-terms"},
 	{PatternID: "write-company", CanonicalID: "create-company"},
@@ -55,4 +56,4 @@ var GeneratedTier1Aliases = []Tier1Alias{
 	{PatternID: "write-issue", CanonicalID: "create-issue"},
 }
 
-var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "create-email-welcome", "create-issue", "delete-company", "update-issue"}
+var GeneratedThreadPinSkillIDs = []string{"create-company", "create-doc", "create-email", "create-email-welcome", "create-issue", "delete-company", "update-company", "update-issue"}
